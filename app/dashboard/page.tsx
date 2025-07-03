@@ -453,6 +453,7 @@ export default function DashboardPage() {
 						</CardContent>
 					</Card>
 				</motion.div>
+
 				{/* Game Results Section */}
 				{hasCompletedGames && (
 					<motion.div
@@ -656,6 +657,41 @@ export default function DashboardPage() {
 						))}
 					</div>
 				</motion.div>
+				{/* Start Competition Section - Show when no games have been started */}
+				{!hasCompletedGames && (
+					<motion.div
+						initial={{ opacity: 0, scale: 0.95 }}
+						animate={{ opacity: 1, scale: 1 }}
+						transition={{ duration: 0.6, delay: 0.4 }}
+						className="mb-8"
+					>
+						<Card className="bg-white border-gray-200 shadow-lg">
+							<CardHeader className="flex items-center">
+								<CardTitle className="text-gray-800 flex items-center gap-2">
+									<Play className="w-5 h-5" />
+									Ready to Start Your Competition?
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="text-center">
+									<p className="text-gray-600 mb-6">
+										Your team is ready! Click the button
+										below to begin your exciting game
+										competition.
+									</p>
+									<Button
+										onClick={() => setShowStartModal(true)}
+										size="lg"
+										className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+									>
+										<Play className="w-5 h-5 mr-2" />
+										Start Competition
+									</Button>
+								</div>
+							</CardContent>
+						</Card>
+					</motion.div>
+				)}
 
 				{/* Start Game Button */}
 				<motion.div

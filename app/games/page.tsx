@@ -99,8 +99,29 @@ export default function GamesPage() {
 				if (res.ok) {
 					const cloudData = await res.json();
 					if (cloudData.gameProgress) {
-						setGames(cloudData.gameProgress.games || games);
-						setCurrentGame(cloudData.gameProgress.currentGame || 0);
+						const loadedGames =
+							cloudData.gameProgress.games || games;
+						setGames(loadedGames);
+
+						// Determine the correct current game
+						let correctCurrentGame =
+							cloudData.gameProgress.currentGame || 0;
+
+						// If we have a currentGame saved, verify it's correct
+						// The current game should be the first uncompleted game
+						const firstUncompletedIndex = loadedGames.findIndex(
+							(game) => !game.completed
+						);
+						if (firstUncompletedIndex !== -1) {
+							correctCurrentGame = firstUncompletedIndex;
+						} else if (
+							loadedGames.every((game) => game.completed)
+						) {
+							// All games completed, set to last game index
+							correctCurrentGame = loadedGames.length - 1;
+						}
+
+						setCurrentGame(correctCurrentGame);
 					}
 					if (cloudData.teamName || cloudData.teamMembers) {
 						setTeamData((prev: any) => ({ ...prev, ...cloudData }));
@@ -200,6 +221,7 @@ export default function GamesPage() {
 							teamName,
 							gameProgress: {
 								games: updatedGames,
+								currentGame: nextGameIndex,
 							},
 						},
 					}),
@@ -299,6 +321,7 @@ export default function GamesPage() {
 						teamName,
 						gameProgress: {
 							games: games,
+							currentGame: currentGame,
 						},
 					},
 				}),
