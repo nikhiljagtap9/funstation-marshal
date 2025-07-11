@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { bucket } from "@/lib/gcs";
+import { wsServer } from "./admin-ws";
 
 export default async function handler(
 	req: NextApiRequest,
@@ -33,5 +34,25 @@ export default async function handler(
 	await teamFile.save(JSON.stringify(userData), {
 		contentType: "application/json",
 	});
+	// Broadcast to admin dashboards via WebSocket
+	if (wsServer) {
+		const now = new Date().toLocaleString();
+		wsServer.clients.forEach((client) => {
+			if (client.readyState === 1) {
+				client.send(
+					JSON.stringify({
+						type: "new_marshal",
+						message: `New marshal registered: ${
+							marshalName || username
+						} at ${now}`,
+						marshalName: marshalName || username,
+						username,
+						time: now,
+					})
+				);
+				client.send(JSON.stringify({ type: "liveUpdate" }));
+			}
+		});
+	}
 	res.status(201).json({ message: "User registered successfully" });
 }

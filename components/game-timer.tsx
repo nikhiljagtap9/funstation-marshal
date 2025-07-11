@@ -437,20 +437,38 @@ export default function GameTimer({
 								onValueChange={(value) =>
 									setSeconds(Number.parseInt(value))
 								}
+								disabled={minutes === 10}
 							>
-								<SelectTrigger className="bg-white border-gray-300 text-gray-800 focus:border-yellow-400">
+								<SelectTrigger
+									className={`bg-white border-gray-300 text-gray-800 focus:border-yellow-400 ${
+										minutes === 10
+											? "opacity-50 cursor-not-allowed"
+											: ""
+									}`}
+								>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent className="bg-white border-gray-300">
-									{Array.from({ length: 60 }, (_, i) => (
+									{minutes === 10 ? (
 										<SelectItem
-											key={i}
-											value={i.toString()}
+											key={0}
+											value={"0"}
 											className="text-gray-800 focus:bg-yellow-50"
+											disabled
 										>
-											{i}
+											0
 										</SelectItem>
-									))}
+									) : (
+										Array.from({ length: 60 }, (_, i) => (
+											<SelectItem
+												key={i}
+												value={i.toString()}
+												className="text-gray-800 focus:bg-yellow-50"
+											>
+												{i}
+											</SelectItem>
+										))
+									)}
 								</SelectContent>
 							</Select>
 						</div>

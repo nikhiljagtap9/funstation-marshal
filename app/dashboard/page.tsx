@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
 	MoreVertical,
 	Save,
 	Loader2,
+	Bell,
 } from "lucide-react";
 import StartGameModal from "@/components/start-game-modal";
 import GameDetailsModal from "@/components/game-details-modal";
@@ -26,12 +27,26 @@ import GameRulesModal from "@/components/game-rules-modal";
 import ResetConfirmationModal from "@/components/reset-confirmation-modal";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import {
+	AlertDialog,
+	AlertDialogTrigger,
+	AlertDialogContent,
+	AlertDialogHeader,
+	AlertDialogFooter,
+	AlertDialogTitle,
+	AlertDialogDescription,
+	AlertDialogAction,
+	AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 interface MarshalData {
 	marshalName: string;
 	teamName: string;
 	username: string;
 	teamMembers?: string;
+	gameProgress?: {
+		games: GameData[];
+	};
 }
 
 interface GameData {
@@ -50,7 +65,14 @@ interface GameData {
 		finalScore: number;
 		finalScoreFormatted?: string;
 	};
+	editRequested?: boolean;
+	editAllowed?: boolean;
 }
+
+const playNotificationSound = () => {
+	const audio = new Audio("/notification.mp3");
+	audio.play();
+};
 
 export default function DashboardPage() {
 	const [marshalData, setMarshalData] = useState<MarshalData | null>(null);
@@ -70,6 +92,61 @@ export default function DashboardPage() {
 	const [loading, setLoading] = useState(true);
 	const router = useRouter();
 	const { toast } = useToast();
+	const wsRef = useRef<WebSocket | null>(null);
+	const [notifications, setNotifications] = useState<
+		{ message: string; time: string }[]
+	>([]);
+	const [notifOpen, setNotifOpen] = useState(false);
+	const [notifLoading, setNotifLoading] = useState(false);
+	// Add state for editingGameIndex and newEditTime at the top of the component
+	const [editingGameIndex, setEditingGameIndex] = useState<number | null>(
+		null
+	);
+	const [newEditTime, setNewEditTime] = useState<number>(0);
+	// Add state for edit modal
+	const [editModalOpen, setEditModalOpen] = useState(false);
+	const [editModalGame, setEditModalGame] = useState<GameData | null>(null);
+	// Add state for confirmation modal
+	const [confirmEditIndex, setConfirmEditIndex] = useState<number | null>(
+		null
+	);
+
+	const fetchMarshalData = async () => {
+		try {
+			let username = "";
+			const localData = localStorage.getItem("marshalData");
+			if (localData) {
+				const parsed = JSON.parse(localData);
+				username = parsed.username;
+			}
+			if (!username) username = "marshal@guest.com";
+			const res = await fetch(
+				`/api/get-team-record?teamId=${encodeURIComponent(username)}`
+			);
+			if (res.ok) {
+				const data = await res.json();
+				setMarshalData(data);
+				setTeamInfo({
+					teamName: data.teamName || "",
+				});
+				if (data.gameProgress) {
+					const completedGames = (
+						data.gameProgress.games || []
+					).filter((game: GameData) => game.completed);
+					setGameResults(completedGames);
+					setHasCompletedGames(completedGames.length > 0);
+					setAllGamesCompleted(completedGames.length === 5);
+				}
+			}
+		} catch (e) {
+			setMarshalData({
+				marshalName: "Game Marshal",
+				teamName: "Default Team",
+				username: "marshal@guest.com",
+			});
+		}
+		setLoading(false);
+	};
 
 	useEffect(() => {
 		const token = localStorage.getItem("authToken");
@@ -77,48 +154,94 @@ export default function DashboardPage() {
 			router.push("/");
 			return;
 		}
-
-		// Try to get marshalData from cloud storage
-		const fetchMarshalData = async () => {
-			try {
-				let username = "";
-				const localData = localStorage.getItem("marshalData");
-				if (localData) {
-					const parsed = JSON.parse(localData);
-					username = parsed.username;
-				}
-				if (!username) username = "marshal@guest.com";
-				const res = await fetch(
-					`/api/get-team-record?teamId=${encodeURIComponent(
-						username
-					)}`
-				);
-				if (res.ok) {
-					const data = await res.json();
-					setMarshalData(data);
-					setTeamInfo({
-						teamName: data.teamName || "",
-					});
-					if (data.gameProgress) {
-						const completedGames = (
-							data.gameProgress.games || []
-						).filter((game: GameData) => game.completed);
-						setGameResults(completedGames);
-						setHasCompletedGames(completedGames.length > 0);
-						setAllGamesCompleted(completedGames.length === 5);
-					}
-				}
-			} catch (e) {
-				setMarshalData({
-					marshalName: "Game Marshal",
-					teamName: "Default Team",
-					username: "marshal@guest.com",
-				});
-			}
-			setLoading(false);
-		};
 		fetchMarshalData();
-	}, [router]);
+
+		// WebSocket connection for real-time updates
+		if (!wsRef.current) {
+			const protocol =
+				window.location.protocol === "https:" ? "wss" : "ws";
+			const ws = new WebSocket(
+				`${protocol}://${window.location.host}/api/admin-ws`
+			);
+			wsRef.current = ws;
+			ws.onmessage = (event) => {
+				try {
+					const msg = JSON.parse(event.data);
+					if (msg.type === "editAllowed") {
+						console.log(
+							"Received editAllowed WebSocket message",
+							msg
+						);
+						toast({
+							title: "Edit Approved!",
+							description:
+								"Admin has approved your edit request. You can now edit the game result.",
+							className:
+								"bg-yellow-100 text-yellow-800 border-yellow-300",
+							duration: 2500,
+						});
+						setNotifLoading(true);
+						fetchMarshalData();
+						setNotifLoading(false);
+						playNotificationSound();
+						return;
+					}
+					if (
+						msg.type === "liveUpdate" ||
+						msg.type === "editPending" ||
+						msg.type === "editRequested" ||
+						msg.type === "editAccepted"
+					) {
+						setNotifLoading(true);
+						fetchMarshalData();
+						setNotifLoading(false);
+						playNotificationSound();
+						toast({
+							title: "Live Update!",
+							description:
+								"Your team data was updated in real time.",
+							duration: 2500,
+						});
+					}
+					if (msg.type === "new_marshal") {
+						setNotifications((prev) => [
+							{
+								message: msg.message,
+								time:
+									msg.time || new Date().toLocaleTimeString(),
+							},
+							...prev.slice(0, 9),
+						]);
+						setNotifLoading(false);
+						playNotificationSound();
+						toast({
+							title: "New Marshal Registered!",
+							description: msg.message,
+							duration: 4000,
+						});
+					}
+				} catch {}
+			};
+			ws.onclose = () => {
+				wsRef.current = null;
+			};
+		}
+		// Cleanup on unmount
+		return () => {
+			if (wsRef.current) {
+				wsRef.current.close();
+				wsRef.current = null;
+			}
+		};
+	}, [router, toast]);
+
+	useEffect(() => {
+		if (isEditingTeam) return; // Pause polling while editing team info
+		const interval = setInterval(() => {
+			fetchMarshalData();
+		}, 1000); // every 1 second
+		return () => clearInterval(interval);
+	}, [isEditingTeam]);
 
 	const handleLogout = () => {
 		localStorage.removeItem("authToken");
@@ -279,7 +402,23 @@ export default function DashboardPage() {
 		);
 	}
 	if (!marshalData) {
-		return <div>No marshal data found.</div>;
+		return (
+			<div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-yellow-100 to-blue-100">
+				<div className="flex flex-col items-center gap-6 p-8 bg-white rounded-lg shadow-lg">
+					<p className="text-2xl font-bold text-gray-700 mb-4">
+						No marshal data found.
+					</p>
+					<Button
+						onClick={handleLogout}
+						variant="outline"
+						className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+					>
+						<LogOut className="w-4 h-4 mr-2" />
+						Logout
+					</Button>
+				</div>
+			</div>
+		);
 	}
 
 	return (
@@ -296,6 +435,7 @@ export default function DashboardPage() {
 							className="object-contain"
 						/>
 					</div>
+
 					<div className="flex items-center gap-2">
 						<Button
 							onClick={handleLogout}
@@ -535,11 +675,77 @@ export default function DashboardPage() {
 																	{game.name}
 																</h4>
 																<p className="text-xs text-green-600 font-semibold">
-																	{game.timeFormatted ||
-																		formatTime(
-																			game.time ||
-																				0
-																		)}
+																	{game.name ===
+																		"Office Chair Race" &&
+																	game.details ? (
+																		<span className="text-green-700 font-bold text-sm flex items-center gap-1">
+																			{(() => {
+																				const base =
+																					game.time ||
+																					0;
+																				const penalties =
+																					game
+																						.details
+																						.penaltySeconds *
+																						5 ||
+																					0;
+																				const total =
+																					base +
+																					penalties;
+																				const mins =
+																					Math.floor(
+																						total /
+																							60
+																					)
+																						.toString()
+																						.padStart(
+																							2,
+																							"0"
+																						);
+																				const secs =
+																					(
+																						total %
+																						60
+																					)
+																						.toString()
+																						.padStart(
+																							2,
+																							"0"
+																						);
+																				return `${mins}:${secs}`;
+																			})()}
+																			{game
+																				.details
+																				.penaltySeconds >
+																				0 && (
+																				<span className="text-red-600 font-normal ml-2">
+																					+
+																					{game
+																						.details
+																						.penaltySeconds *
+																						5}
+																					s
+																				</span>
+																			)}
+																		</span>
+																	) : (
+																		<span className="text-xs text-green-600 font-semibold">
+																			{game.details &&
+																			typeof game
+																				.details
+																				.finalScore ===
+																				"number"
+																				? formatTime(
+																						game
+																							.details
+																							.finalScore
+																				  )
+																				: formatTime(
+																						game.time ||
+																							0
+																				  )}
+																		</span>
+																	)}
 																</p>
 															</div>
 														</div>
@@ -550,12 +756,320 @@ export default function DashboardPage() {
 																	game
 																)
 															}
-															className="bg-yellow-400 hover:bg-yellow-500 text-black"
+															className="bg-yellow-400 hover:bg-yellow-500 text-black mr-2"
 														>
 															<Eye className="w-3 h-3" />
 														</Button>
+														<AlertDialog
+															open={
+																confirmEditIndex ===
+																index
+															}
+															onOpenChange={(
+																open
+															) =>
+																setConfirmEditIndex(
+																	open
+																		? index
+																		: null
+																)
+															}
+														>
+															<AlertDialogTrigger
+																asChild
+															>
+																<Button
+																	size="sm"
+																	variant="outline"
+																	disabled={
+																		game.editRequested ||
+																		game.editAllowed
+																	}
+																	onClick={() =>
+																		setConfirmEditIndex(
+																			index
+																		)
+																	}
+																>
+																	{game.editRequested
+																		? "Edit Requested"
+																		: game.editAllowed
+																		? "Edit Allowed"
+																		: "Request Admin"}
+																</Button>
+															</AlertDialogTrigger>
+															<AlertDialogContent>
+																<AlertDialogHeader>
+																	<AlertDialogTitle>
+																		Request
+																		Admin?
+																	</AlertDialogTitle>
+																	<AlertDialogDescription>
+																		<span>
+																			You
+																			are
+																			about
+																			to
+																			request
+																			an
+																			admin
+																			edit
+																			for{" "}
+																			<b>
+																				{
+																					game.name
+																				}
+																			</b>
+																			.
+																			<br />
+																			<br />
+																			If
+																			you
+																			made
+																			a
+																			mistake
+																			in
+																			entering
+																			the
+																			game
+																			results—such
+																			as
+																			an
+																			incorrect
+																			time,
+																			score,
+																			or
+																			any
+																			other
+																			error—this
+																			will
+																			notify
+																			the
+																			admin
+																			so
+																			you
+																			can
+																			correct
+																			it.
+																			<br />
+																			<br />
+																			<span className="text-yellow-700 font-semibold">
+																				This
+																				action
+																				cannot
+																				be
+																				undone
+																				and
+																				will
+																				alert
+																				the
+																				admin
+																				immediately.
+																			</span>
+																		</span>
+																	</AlertDialogDescription>
+																</AlertDialogHeader>
+																<AlertDialogFooter>
+																	<AlertDialogCancel>
+																		Cancel
+																	</AlertDialogCancel>
+																	<AlertDialogAction
+																		className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold border-yellow-400"
+																		onClick={async () => {
+																			if (
+																				!marshalData
+																			)
+																				return;
+																			await fetch(
+																				"/api/save-team-record",
+																				{
+																					method: "POST",
+																					headers:
+																						{
+																							"Content-Type":
+																								"application/json",
+																						},
+																					body: JSON.stringify(
+																						{
+																							teamId: marshalData.username,
+																							data: marshalData,
+																							editAction:
+																								"requestEdit",
+																							gameIndex:
+																								index,
+																						}
+																					),
+																				}
+																			);
+																			toast(
+																				{
+																					title: "Edit Requested",
+																					description: `Requested admin permission to edit ${game.name}.`,
+																					className:
+																						"bg-yellow-100 text-yellow-800 border-yellow-300",
+																					duration: 2000,
+																				}
+																			);
+																			setConfirmEditIndex(
+																				null
+																			);
+																		}}
+																	>
+																		Request
+																	</AlertDialogAction>
+																</AlertDialogFooter>
+															</AlertDialogContent>
+														</AlertDialog>
+														{/* Edit Button or Waiting Message */}
+														{game.editAllowed ? (
+															<Button
+																size="sm"
+																variant="outline"
+																className="ml-2 bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+																onClick={() => {
+																	toast({
+																		title: "Edit Mode",
+																		description:
+																			"You can now edit the game result. Make your changes and submit.",
+																		className:
+																			"bg-yellow-100 text-yellow-800 border-yellow-300",
+																		duration: 2500,
+																	});
+																	setEditModalGame(
+																		game
+																	);
+																	setEditModalOpen(
+																		true
+																	);
+																}}
+															>
+																Edit
+															</Button>
+														) : game.editRequested ? (
+															<span
+																className="ml-2 px-3 py-1 rounded bg-yellow-100 text-yellow-700 font-semibold text-xs border border-yellow-300 cursor-pointer"
+																onClick={() => {
+																	toast({
+																		title: "Waiting for Approval",
+																		description:
+																			"Your edit request is pending admin approval. Please wait.",
+																		className:
+																			"bg-yellow-100 text-yellow-800 border-yellow-300",
+																		duration: 2500,
+																	});
+																}}
+															>
+																Pending
+															</span>
+														) : null}
 													</div>
 												</CardContent>
+												{/* Inline edit form for the selected game */}
+												{editingGameIndex === index && (
+													<form
+														onSubmit={async (e) => {
+															e.preventDefault();
+															if (!marshalData)
+																return;
+															await fetch(
+																"/api/save-team-record",
+																{
+																	method: "POST",
+																	headers: {
+																		"Content-Type":
+																			"application/json",
+																	},
+																	body: JSON.stringify(
+																		{
+																			teamId: marshalData.username,
+																			data: {
+																				...marshalData,
+																				gameProgress:
+																					{
+																						...marshalData.gameProgress,
+																						games: (
+																							marshalData
+																								.gameProgress
+																								?.games ||
+																							[]
+																						).map(
+																							(
+																								g: GameData,
+																								i: number
+																							) =>
+																								i ===
+																								index
+																									? {
+																											...g,
+																											time: newEditTime,
+																											editPending:
+																												true,
+																											editAllowed:
+																												false,
+																									  }
+																									: g
+																						),
+																					},
+																			},
+																			editAction:
+																				"submitEdit",
+																			gameIndex:
+																				index,
+																		}
+																	),
+																}
+															);
+															setEditingGameIndex(
+																null
+															);
+															setNewEditTime(0);
+															toast({
+																title: "Edit Submitted",
+																description: `New time submitted for ${game.name}. Awaiting admin review.`,
+																className:
+																	"bg-blue-100 text-blue-800 border-blue-300",
+																duration: 2000,
+															});
+														}}
+														className="flex items-center gap-2 mt-2"
+													>
+														<input
+															type="number"
+															min={0}
+															value={newEditTime}
+															onChange={(e) =>
+																setNewEditTime(
+																	Number(
+																		e.target
+																			.value
+																	)
+																)
+															}
+															className="border border-gray-300 rounded px-2 py-1 w-24"
+															placeholder="New time (sec)"
+															required
+														/>
+														<Button
+															type="submit"
+															size="sm"
+															className="bg-blue-500 text-white"
+														>
+															Submit
+														</Button>
+														<Button
+															type="button"
+															size="sm"
+															variant="ghost"
+															onClick={() =>
+																setEditingGameIndex(
+																	null
+																)
+															}
+														>
+															Cancel
+														</Button>
+													</form>
+												)}
 											</Card>
 										))}
 									</div>
@@ -723,6 +1237,85 @@ export default function DashboardPage() {
 					game={selectedGameDetails}
 					isOpen={!!selectedGameDetails}
 					onClose={() => setSelectedGameDetails(null)}
+				/>
+			)}
+			{/* Edit Modal for marshal */}
+			{editModalGame && (
+				<GameDetailsModal
+					game={editModalGame}
+					isOpen={editModalOpen}
+					onClose={() => setEditModalOpen(false)}
+					canEdit={editModalGame.editAllowed}
+					onEditSubmit={async (values) => {
+						if (!marshalData) return;
+						// Find the index of the game being edited
+						const gameIndex =
+							marshalData.gameProgress?.games?.findIndex(
+								(g) => g.name === editModalGame.name
+							);
+						if (gameIndex === undefined || gameIndex < 0) return;
+						// Update the game in marshalData
+						const updatedGames = (
+							marshalData.gameProgress?.games || []
+						).map((g, i) =>
+							i === gameIndex
+								? {
+										...g,
+										...values,
+										details: {
+											...g.details,
+											bonusSeconds: values.bonusSeconds,
+											penaltySeconds:
+												values.penaltySeconds,
+											creativityBonus:
+												values.creativityBonus,
+											finalScore: values.finalScore,
+										},
+										time: values.time,
+										score: values.score,
+										editPending: true,
+										editAllowed: false,
+								  }
+								: g
+						);
+						const updatedData = {
+							...marshalData,
+							gameProgress: {
+								...marshalData.gameProgress,
+								games: updatedGames,
+							},
+						};
+						await fetch("/api/save-team-record", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({
+								teamId: marshalData.username,
+								data: updatedData,
+								editAction: "submitEdit",
+								gameIndex,
+							}),
+						});
+						setEditModalOpen(false);
+						setEditModalGame(null);
+						toast({
+							title: "Edit Saved to Cloud",
+							description:
+								"Your changes have been saved and are pending admin approval. Both marshal and admin dashboards are now updated.",
+							className:
+								"bg-blue-100 text-blue-800 border-blue-300",
+							duration: 2000,
+						});
+						// Fetch latest data from cloud, then show a second toast
+						await fetchMarshalData();
+						toast({
+							title: "Data Refreshed",
+							description:
+								"You are now viewing the latest saved data from the cloud.",
+							className:
+								"bg-green-100 text-green-800 border-green-300",
+							duration: 2000,
+						});
+					}}
 				/>
 			)}
 		</div>

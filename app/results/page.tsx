@@ -13,6 +13,10 @@ interface GameResult {
 	icon: string;
 	time: number;
 	score: number;
+	finalScore?: number;
+	details?: {
+		penaltySeconds?: number;
+	};
 }
 
 export default function ResultsPage() {
@@ -52,6 +56,12 @@ export default function ResultsPage() {
 								icon: game.icon,
 								time: game.time || 0,
 								score: game.score || 0,
+								finalScore:
+									game.details &&
+									typeof game.details.finalScore === "number"
+										? game.details.finalScore
+										: undefined,
+								details: game.details || {},
 							}));
 						setGameResults(results);
 						setTotalTime(
@@ -75,6 +85,19 @@ export default function ResultsPage() {
 	if (!teamData) {
 		return <div>Loading...</div>;
 	}
+
+	// Define the correct order for the games
+	const gameOrder = [
+		"House of Cards",
+		"Office Chair Race",
+		"Around the Clock",
+		"Pass the Spud",
+		"Skin the Snake",
+	];
+	// Sort gameResults in ascending order by gameOrder
+	const sortedResults = [...gameResults].sort(
+		(a, b) => gameOrder.indexOf(a.name) - gameOrder.indexOf(b.name)
+	);
 
 	return (
 		<div className="min-h-screen bg-white p-4">
@@ -140,37 +163,101 @@ export default function ResultsPage() {
 						Game Breakdown
 					</h2>
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{gameResults.map((game, index) => (
+						{sortedResults.map((game, index) => (
 							<motion.div
 								key={game.name}
-								initial={{ opacity: 0, y: 20 }}
+								initial={{ opacity: 0, y: 40 }}
 								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.6 + index * 0.1 }}
+								transition={{ delay: 0.6 + index * 0.4 }}
 								whileHover={{ scale: 1.05 }}
 							>
 								<Card className="bg-gray-50 border-gray-200 hover:bg-gray-100 transition-all">
-									<CardHeader className="p-3">
+									<CardHeader className="p-3 flex flex-row items-center justify-between">
 										<CardTitle className="text-gray-800 flex items-center gap-2 text-lg">
 											<span className="text-2xl">
 												{game.icon}
 											</span>
 											{game.name}
 										</CardTitle>
+										{/* Removed place/rank Badge */}
 									</CardHeader>
 									<CardContent className="p-3">
 										<div className="space-y-2">
 											<div className="flex items-center justify-between text-sm">
 												<span className="text-gray-600">
-													Time:
+													Final Time:
 												</span>
 												<Badge
 													variant="secondary"
 													className="bg-green-100 text-green-800 border-green-300"
 												>
-													{game.timeFormatted ||
-														formatTime(
-															game.time || 0
-														)}
+													{game.name ===
+														"Office Chair Race" &&
+													game.details ? (
+														<span className="text-green-700 font-bold text-sm flex items-center gap-1">
+															{(() => {
+																const base =
+																	game.time ||
+																	0;
+																const penalties =
+																	game.details
+																		.penaltySeconds
+																		? game
+																				.details
+																				.penaltySeconds *
+																		  5
+																		: 0;
+																const total =
+																	base +
+																	penalties;
+																const mins =
+																	Math.floor(
+																		total /
+																			60
+																	)
+																		.toString()
+																		.padStart(
+																			2,
+																			"0"
+																		);
+																const secs = (
+																	total % 60
+																)
+																	.toString()
+																	.padStart(
+																		2,
+																		"0"
+																	);
+																return `${mins}:${secs}`;
+															})()}
+															{game.details
+																.penaltySeconds &&
+																game.details
+																	.penaltySeconds >
+																	0 && (
+																	<span className="text-red-600 font-normal ml-2">
+																		+
+																		{game
+																			.details
+																			.penaltySeconds *
+																			5}
+																		s
+																	</span>
+																)}
+														</span>
+													) : (
+														<span className="text-xs text-green-600 font-semibold">
+															{game.finalScore !==
+															undefined
+																? formatTime(
+																		game.finalScore
+																  )
+																: formatTime(
+																		game.time ||
+																			0
+																  )}
+														</span>
+													)}
 												</Badge>
 											</div>
 											<div className="flex items-center justify-between text-sm">

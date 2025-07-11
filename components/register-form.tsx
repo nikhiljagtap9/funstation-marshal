@@ -24,6 +24,9 @@ export default function RegisterForm({ onComplete }: RegisterFormProps) {
 
 	const { toast } = useToast();
 
+	const ADMIN_USERNAME = "eric@fantasia.com";
+	const ADMIN_PASSWORD = "eric@2025";
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsLoading(true);
@@ -37,10 +40,58 @@ export default function RegisterForm({ onComplete }: RegisterFormProps) {
 			newErrors.confirmPassword = "Confirm password is required";
 		if (formData.password !== formData.confirmPassword)
 			newErrors.confirmPassword = "Passwords do not match";
-
+		// Prevent admin credentials in marshal registration
+		if (formData.marshalName === ADMIN_USERNAME) {
+			setErrors({
+				marshalName: "This username is reserved for admin only.",
+			});
+			setIsLoading(false);
+			return;
+		}
 		if (Object.keys(newErrors).length > 0) {
 			setErrors(newErrors);
 			setIsLoading(false);
+			return;
+		}
+
+		// Admin registration logic
+		if (
+			formData.marshalName === "eric@fantasia.com" &&
+			formData.password === "eric@2025"
+		) {
+			try {
+				const res = await fetch("/api/register-admin", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						username: formData.marshalName,
+						password: formData.password,
+					}),
+				});
+				const result = await res.json();
+				if (!res.ok) {
+					setErrors({
+						marshalName: result.error || "Registration failed",
+					});
+					setIsLoading(false);
+					return;
+				}
+				// Show toast and redirect to admin login (not splash)
+				toast({
+					title: "Successfully Registered, Eric!",
+					description: "Please login as admin to continue.",
+					duration: 2500,
+				});
+				setTimeout(() => {
+					window.location.href = "/admin";
+				}, 1500);
+			} catch (err) {
+				setErrors({
+					marshalName: "Registration failed. Please try again.",
+				});
+			} finally {
+				setIsLoading(false);
+			}
 			return;
 		}
 

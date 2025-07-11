@@ -34,6 +34,9 @@ export default function LoginForm() {
 	const { toast } = useToast();
 	const router = useRouter();
 
+	const ADMIN_USERNAME = "eric@fantasia.com";
+	const ADMIN_PASSWORD = "eric@2025";
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsLoading(true);
@@ -46,9 +49,42 @@ export default function LoginForm() {
 		if (!marshalName) newErrors.marshalName = "Username is required";
 		if (!password) newErrors.password = "Password is required";
 
+		// Prevent admin credentials in marshal login
+		if (marshalName === ADMIN_USERNAME) {
+			setErrors({
+				marshalName: "This username is reserved for admin only.",
+			});
+			setIsLoading(false);
+			return;
+		}
+
 		if (Object.keys(newErrors).length > 0) {
 			setErrors(newErrors);
 			setIsLoading(false);
+			return;
+		}
+
+		// Admin login logic
+		if (marshalName === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+			try {
+				const res = await fetch("/api/register-admin", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ username: marshalName, password }),
+				});
+				const result = await res.json();
+				if (!res.ok) {
+					setErrors({ marshalName: result.error || "Login failed" });
+					setIsLoading(false);
+					return;
+				}
+				// Redirect to admin panel (no localStorage for admin)
+				window.location.href = "/admin";
+			} catch (err) {
+				setErrors({ marshalName: "Login failed. Please try again." });
+			} finally {
+				setIsLoading(false);
+			}
 			return;
 		}
 
