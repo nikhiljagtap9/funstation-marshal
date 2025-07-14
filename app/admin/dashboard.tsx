@@ -84,7 +84,7 @@ export default function AdminDashboard() {
 	// Add state to track WebSocket connection status
 	const [wsConnected, setWsConnected] = useState(false);
 
-	// Add state for reveal flow
+
 	const [revealStep, setRevealStep] = useState<
 		"splash" | "team" | "final" | null
 	>(null);
