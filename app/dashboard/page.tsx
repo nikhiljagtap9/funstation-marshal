@@ -26,10 +26,10 @@ import {
 	Loader2,
 	Bell,
 } from "lucide-react";
-import StartGameModal from "../components/start-game-modal";
-import GameDetailsModal from "../components/game-details-modal";
-import GameRulesModal from "../components/game-rules-modal";
-import ResetConfirmationModal from "../components/reset-confirmation-modal";
+import StartGameModal from "../../components/start-game-modal";
+import GameDetailsModal from "../../components/game-details-modal";
+import GameRulesModal from "../../components/game-rules-modal";
+import ResetConfirmationModal from "../../components/reset-confirmation-modal";
 import { useToast } from "../../hooks/use-toast";
 import Image from "next/image";
 import {
