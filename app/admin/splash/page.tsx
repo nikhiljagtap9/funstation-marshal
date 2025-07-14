@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "../../../components/ui/button";
+import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import Image from "next/image";
 

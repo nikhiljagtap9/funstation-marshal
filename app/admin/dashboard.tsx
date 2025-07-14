@@ -3,22 +3,17 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "../../components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
-} from "../../components/ui/dialog";
+} from "@/components/ui/dialog";
 import { MoreVertical, Trophy, Users, LogOut, Bell } from "lucide-react";
-import { useToast } from "../../hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { Bar } from "react-chartjs-2";
 import {
@@ -30,9 +25,8 @@ import {
 	Tooltip,
 	Legend,
 } from "chart.js";
-import SparksAnimation from "../../components/sparks-animation";
-
-import ShowResultsButton from "../../components/show-results-button";
+import SparksAnimation from "@/components/sparks-animation";
+import ShowResultsButton from "@/components/show-results-button";
 
 interface TeamData {
 	username: string;

@@ -3,10 +3,10 @@
 import type React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { useToast } from "../hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import {
 	Dialog,
@@ -14,7 +14,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
-} from "./ui/dialog";
+} from "@/components/ui/dialog";
 
 export default function LoginForm() {
 	const [marshalName, setMarshalName] = useState("");

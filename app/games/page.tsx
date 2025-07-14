@@ -3,15 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Trophy, ArrowRight, Home, Eye, Lock, CheckCircle } from "lucide-react";
-import GameTimer from "../../components/game-timer";
-import GameDetailsModal from "../../components/game-details-modal";
-import GameCompletionAnimation from "../../components/game-completion-animation";
-import { useToast } from "../../hooks/use-toast";
-import NewYearAnimation from "../../components/new-year-animation";
+import GameTimer from "@/components/game-timer";
+import GameDetailsModal from "@/components/game-details-modal";
+import GameCompletionAnimation from "@/components/game-completion-animation";
+import { useToast } from "@/hooks/use-toast";
+import NewYearAnimation from "@/components/new-year-animation";
 
 interface GameData {
 	name: string;

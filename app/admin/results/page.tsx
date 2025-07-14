@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import SparksAnimation from "../../../components/sparks-animation";
+import SparksAnimation from "@/components/sparks-animation";
 
 interface TeamData {
 	username: string;

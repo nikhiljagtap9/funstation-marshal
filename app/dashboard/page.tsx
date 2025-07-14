@@ -3,16 +3,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "../../components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Users,
 	Trophy,
@@ -26,11 +21,11 @@ import {
 	Loader2,
 	Bell,
 } from "lucide-react";
-import StartGameModal from "../../components/start-game-modal";
-import GameDetailsModal from "../../components/game-details-modal";
-import GameRulesModal from "../../components/game-rules-modal";
-import ResetConfirmationModal from "../../components/reset-confirmation-modal";
-import { useToast } from "../../hooks/use-toast";
+import StartGameModal from "@/components/start-game-modal";
+import GameDetailsModal from "@/components/game-details-modal";
+import GameRulesModal from "@/components/game-rules-modal";
+import ResetConfirmationModal from "@/components/reset-confirmation-modal";
+import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import {
 	AlertDialog,
@@ -42,7 +37,7 @@ import {
 	AlertDialogDescription,
 	AlertDialogAction,
 	AlertDialogCancel,
-} from "../../components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog";
 
 interface MarshalData {
 	marshalName: string;
