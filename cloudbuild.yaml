@@ -1,0 +1,38 @@
+steps:
+    # Build the container image
+    - name: "gcr.io/cloud-builders/docker"
+      args:
+          [
+              "build",
+              "-t",
+              "asia-southeast1-docker.pkg.dev/quantum-beach-464611-e1/funstation-marshal/app",
+              ".",
+          ]
+
+    # Push the container image to Artifact Registry
+    - name: "gcr.io/cloud-builders/docker"
+      args:
+          [
+              "push",
+              "asia-southeast1-docker.pkg.dev/quantum-beach-464611-e1/funstation-marshal/app",
+          ]
+
+    # Deploy container image to Cloud Run
+    - name: "gcr.io/cloud-builders/gcloud"
+      args:
+          - "run"
+          - "deploy"
+          - "funstation-marshal"
+          - "--image"
+          - "asia-southeast1-docker.pkg.dev/quantum-beach-464611-e1/funstation-marshal/app"
+          - "--region"
+          - "asia-southeast1"
+          - "--platform"
+          - "managed"
+          - "--allow-unauthenticated"
+
+images:
+    - "asia-southeast1-docker.pkg.dev/quantum-beach-464611-e1/funstation-marshal/app"
+
+options:
+    logging: CLOUD_LOGGING_ONLY
