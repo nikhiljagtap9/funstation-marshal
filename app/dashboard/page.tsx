@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -110,8 +110,10 @@ export default function DashboardPage() {
 	const [confirmEditIndex, setConfirmEditIndex] = useState<number | null>(
 		null
 	);
+	// Add state to track WebSocket connection status
+	const [wsConnected, setWsConnected] = useState(false);
 
-	const fetchMarshalData = async () => {
+	const fetchMarshalData = useCallback(async () => {
 		try {
 			let username = "";
 			const localData = localStorage.getItem("marshalData");
@@ -146,7 +148,7 @@ export default function DashboardPage() {
 			});
 		}
 		setLoading(false);
-	};
+	}, []);
 
 	useEffect(() => {
 		const token = localStorage.getItem("authToken");
@@ -158,73 +160,104 @@ export default function DashboardPage() {
 
 		// WebSocket connection for real-time updates
 		if (!wsRef.current) {
-			const protocol =
-				window.location.protocol === "https:" ? "wss" : "ws";
-			const ws = new WebSocket(
-				`${protocol}://${window.location.host}/api/admin-ws`
-			);
-			wsRef.current = ws;
-			ws.onmessage = (event) => {
-				try {
-					const msg = JSON.parse(event.data);
-					if (msg.type === "editAllowed") {
-						console.log(
-							"Received editAllowed WebSocket message",
-							msg
+			try {
+				const protocol =
+					window.location.protocol === "https:" ? "wss" : "ws";
+				const ws = new WebSocket(
+					`${protocol}://${window.location.host}/ws`
+				);
+				wsRef.current = ws;
+
+				ws.onopen = () => {
+					console.log("Marshal WebSocket connected successfully");
+					setWsConnected(true);
+				};
+
+				ws.onmessage = (event) => {
+					try {
+						const msg = JSON.parse(event.data);
+						console.log("Marshal WebSocket message received:", msg);
+
+						if (msg.type === "editAllowed") {
+							console.log(
+								"Received editAllowed WebSocket message",
+								msg
+							);
+							toast({
+								title: "Edit Approved!",
+								description:
+									"Admin has approved your edit request. You can now edit the game result.",
+								className:
+									"bg-yellow-100 text-yellow-800 border-yellow-300",
+								duration: 2500,
+							});
+							setNotifLoading(true);
+							fetchMarshalData();
+							setNotifLoading(false);
+							playNotificationSound();
+							return;
+						}
+						if (
+							msg.type === "liveUpdate" ||
+							msg.type === "editPending" ||
+							msg.type === "editRequested" ||
+							msg.type === "editAccepted"
+						) {
+							console.log(
+								"Marshal: Triggering live update fetch..."
+							);
+							setNotifLoading(true);
+							fetchMarshalData();
+							setNotifLoading(false);
+							playNotificationSound();
+							toast({
+								title: "Live Update!",
+								description:
+									"Your team data was updated in real time.",
+								duration: 2500,
+							});
+						}
+						if (msg.type === "new_marshal") {
+							setNotifications((prev) => [
+								{
+									message: msg.message,
+									time:
+										msg.time ||
+										new Date().toLocaleTimeString(),
+								},
+								...prev.slice(0, 9),
+							]);
+							setNotifLoading(false);
+							playNotificationSound();
+							toast({
+								title: "New Marshal Registered!",
+								description: msg.message,
+								duration: 4000,
+							});
+						}
+					} catch (error) {
+						console.error(
+							"Error parsing WebSocket message:",
+							error
 						);
-						toast({
-							title: "Edit Approved!",
-							description:
-								"Admin has approved your edit request. You can now edit the game result.",
-							className:
-								"bg-yellow-100 text-yellow-800 border-yellow-300",
-							duration: 2500,
-						});
-						setNotifLoading(true);
-						fetchMarshalData();
-						setNotifLoading(false);
-						playNotificationSound();
-						return;
 					}
-					if (
-						msg.type === "liveUpdate" ||
-						msg.type === "editPending" ||
-						msg.type === "editRequested" ||
-						msg.type === "editAccepted"
-					) {
-						setNotifLoading(true);
-						fetchMarshalData();
-						setNotifLoading(false);
-						playNotificationSound();
-						toast({
-							title: "Live Update!",
-							description:
-								"Your team data was updated in real time.",
-							duration: 2500,
-						});
-					}
-					if (msg.type === "new_marshal") {
-						setNotifications((prev) => [
-							{
-								message: msg.message,
-								time:
-									msg.time || new Date().toLocaleTimeString(),
-							},
-							...prev.slice(0, 9),
-						]);
-						setNotifLoading(false);
-						playNotificationSound();
-						toast({
-							title: "New Marshal Registered!",
-							description: msg.message,
-							duration: 4000,
-						});
-					}
-				} catch {}
-			};
-			ws.onclose = () => {
-				wsRef.current = null;
-			};
+				};
+
+				ws.onclose = () => {
+					console.log("Marshal WebSocket disconnected");
+					wsRef.current = null;
+					setWsConnected(false);
+				};
+
+				ws.onerror = (error) => {
+					console.warn("Marshal WebSocket connection failed:", error);
+					wsRef.current = null;
+					setWsConnected(false);
+				};
+			} catch (error) {
+				console.warn("Marshal WebSocket setup failed:", error);
+				setWsConnected(false);
+			}
 		}
 		// Cleanup on unmount
 		return () => {
@@ -235,13 +268,8 @@ export default function DashboardPage() {
 		};
 	}, [router, toast]);
 
-	useEffect(() => {
-		if (isEditingTeam) return; // Pause polling while editing team info
-		const interval = setInterval(() => {
-			fetchMarshalData();
-		}, 1000); // every 1 second
-		return () => clearInterval(interval);
-	}, [isEditingTeam]);
+	// WebSocket-only real-time updates (polling removed)
+	// All updates now come through WebSocket connections
 
 	const handleLogout = () => {
 		localStorage.removeItem("authToken");
@@ -724,6 +752,7 @@ export default function DashboardPage() {
 																						.details
 																						.penaltySeconds *
 																						5}
+
 																					s
 																				</span>
 																			)}

@@ -26,54 +26,68 @@ export default function ResultsPage() {
 	const router = useRouter();
 
 	useEffect(() => {
-		const token = localStorage.getItem("authToken");
-		if (!token) {
-			router.push("/");
-			return;
-		}
-
-		const data = localStorage.getItem("marshalData");
-		let username = "";
-		if (data) {
-			const parsed = JSON.parse(data);
-			setTeamData(parsed);
-			username = parsed.username;
-		}
-
-		if (username) {
-			// Fetch results from cloud
-			fetch(
-				`/api/get-team-record?teamId=${encodeURIComponent(username)}`
-			).then(async (res) => {
-				if (res.ok) {
-					const cloudData = await res.json();
-					setTeamData(cloudData);
-					if (cloudData.gameProgress) {
-						const results = (cloudData.gameProgress.games || [])
-							.filter((game: any) => game.completed)
-							.map((game: any) => ({
-								name: game.name,
-								icon: game.icon,
-								time: game.time || 0,
-								score: game.score || 0,
-								finalScore:
-									game.details &&
-									typeof game.details.finalScore === "number"
-										? game.details.finalScore
-										: undefined,
-								details: game.details || {},
-							}));
-						setGameResults(results);
-						setTotalTime(
-							results.reduce(
-								(sum: number, game: any) => sum + game.time,
-								0
-							)
-						);
+		let interval: NodeJS.Timeout | null = null;
+		const fetchResults = () => {
+			const token = localStorage.getItem("authToken");
+			if (!token) {
+				router.push("/");
+				return;
+			}
+			const data = localStorage.getItem("marshalData");
+			let username = "";
+			if (data) {
+				const parsed = JSON.parse(data);
+				setTeamData(parsed);
+				username = parsed.username;
+			}
+			if (username) {
+				fetch(
+					`/api/get-team-record?teamId=${encodeURIComponent(
+						username
+					)}`
+				).then(async (res) => {
+					if (res.ok) {
+						const cloudData = await res.json();
+						setTeamData(cloudData);
+						if (cloudData.gameProgress) {
+							const results = (cloudData.gameProgress.games || [])
+								.filter((game: any) => game.completed)
+								.map((game: any) => ({
+									name: game.name,
+									icon: game.icon,
+									time: game.time || 0,
+									score: game.score || 0,
+									finalScore:
+										game.details &&
+										typeof game.details.finalScore ===
+											"number"
+											? game.details.finalScore
+											: undefined,
+									details: game.details || {},
+								}));
+							setGameResults(results);
+							setTotalTime(
+								results.reduce(
+									(sum: number, game: any) => sum + game.time,
+									0
+								)
+							);
+							if (results.length === 5 && interval) {
+								clearInterval(interval);
+							}
+						}
 					}
-				}
-			});
-		}
+				});
+			}
+		};
+		fetchResults();
+		interval = setInterval(() => {
+			if (gameResults.length < 5) fetchResults();
+			else if (interval) clearInterval(interval);
+		}, 1000);
+		return () => {
+			if (interval) clearInterval(interval);
+		};
 	}, [router]);
 
 	const formatTime = (seconds: number) => {

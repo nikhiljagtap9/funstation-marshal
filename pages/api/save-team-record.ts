@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { bucket } from "@/lib/gcs";
-import { wsServer } from "./admin-ws";
 
 export default async function handler(
 	req: NextApiRequest,
@@ -70,18 +69,28 @@ export default async function handler(
 	});
 
 	// Broadcast to admin dashboards via WebSocket
-	if (wsServer) {
+	if (global.broadcastToClients) {
 		let wsType = "liveUpdate";
 		if (editAction === "requestEdit") wsType = "editRequested";
 		if (editAction === "allowEdit") wsType = "editAllowed";
 		if (editAction === "submitEdit") wsType = "editPending";
 		if (editAction === "acceptEdit") wsType = "editAccepted";
-		wsServer.clients.forEach((client) => {
-			if (client.readyState === 1) {
-				client.send(
-					JSON.stringify({ type: wsType, teamId, gameIndex })
-				);
-			}
+
+		const completedGames =
+			updatedData.gameProgress?.games?.filter((g: any) => g.completed)
+				?.length || 0;
+		console.log(
+			`Broadcasting WebSocket update: ${wsType} for team ${teamId}, completed games: ${completedGames}`
+		);
+
+		// Always broadcast liveUpdate for any data change (including game completions)
+		global.broadcastToClients({
+			type: wsType,
+			teamId,
+			gameIndex,
+			// Include additional info for game completions
+			hasGameProgress: !!updatedData.gameProgress,
+			completedGames: completedGames,
 		});
 	}
 

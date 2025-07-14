@@ -110,12 +110,12 @@ export default function GamesPage() {
 						// If we have a currentGame saved, verify it's correct
 						// The current game should be the first uncompleted game
 						const firstUncompletedIndex = loadedGames.findIndex(
-							(game) => !game.completed
+							(game: any) => !game.completed
 						);
 						if (firstUncompletedIndex !== -1) {
 							correctCurrentGame = firstUncompletedIndex;
 						} else if (
-							loadedGames.every((game) => game.completed)
+							loadedGames.every((game: any) => game.completed)
 						) {
 							// All games completed, set to last game index
 							correctCurrentGame = loadedGames.length - 1;
@@ -161,6 +161,8 @@ export default function GamesPage() {
 				finalScoreFormatted: formatTime(time),
 			},
 		};
+
+		console.log("Games after completion:", updatedGames);
 
 		let nextGameIndex = currentGame;
 		let showFinalModal = false;
@@ -210,6 +212,12 @@ export default function GamesPage() {
 						teamName = cloudData.teamName || teamName;
 					}
 				}
+				console.log("Saving game completion to cloud...", {
+					teamId: username,
+					completedGames: updatedGames.filter((g: any) => g.completed)
+						.length,
+					totalGames: updatedGames.length,
+				});
 				const res = await fetch("/api/save-team-record", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -620,13 +628,75 @@ export default function GamesPage() {
 										Congratulations! You've completed all 5
 										games.
 									</p>
-									<Button
-										onClick={() => router.push("/results")}
-										className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
-									>
-										View Results
-										<ArrowRight className="w-4 h-4 ml-2" />
-									</Button>
+									{/* Competition Results Summary */}
+									<div className="my-6">
+										<h3 className="text-xl font-bold text-yellow-600 mb-2">
+											Competition Results
+										</h3>
+										<div className="space-y-3">
+											{games.map((game, idx) => (
+												<div
+													key={game.name}
+													className="flex flex-col md:flex-row md:items-center md:justify-between bg-gray-50 rounded-lg p-3 border border-gray-100"
+												>
+													<div className="flex items-center gap-2">
+														<span className="text-2xl">
+															{game.icon}
+														</span>
+														<span className="font-semibold text-gray-800">
+															{game.name}
+														</span>
+													</div>
+													<div className="flex flex-col md:flex-row md:items-center gap-2 mt-2 md:mt-0">
+														<span className="text-sm text-gray-600">
+															Time:{" "}
+															<span className="font-bold text-green-700">
+																{game.timeFormatted ||
+																	"-"}
+															</span>
+														</span>
+														{game.score !==
+															undefined && (
+															<span className="text-sm text-gray-600">
+																Score:{" "}
+																<span className="font-bold text-yellow-700">
+																	{game.score}
+																</span>
+															</span>
+														)}
+														{game.details && (
+															<span className="text-xs text-gray-500">
+																Bonus:{" "}
+																{
+																	game.details
+																		.bonusSeconds
+																}
+																, Penalty:{" "}
+																{
+																	game.details
+																		.penaltySeconds
+																}
+																, Creativity:{" "}
+																{game.details
+																	.creativityBonus
+																	? "Yes"
+																	: "No"}
+															</span>
+														)}
+													</div>
+												</div>
+											))}
+										</div>
+										<div className="mt-4 text-lg font-bold text-gray-800">
+											Total Time:{" "}
+											<span className="text-yellow-700">
+												{Math.floor(totalTime / 60)}:
+												{(totalTime % 60)
+													.toString()
+													.padStart(2, "0")}
+											</span>
+										</div>
+									</div>
 								</CardContent>
 							</Card>
 						)}
