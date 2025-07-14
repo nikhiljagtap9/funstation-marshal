@@ -1,0 +1,2 @@
+[credential "https://source.developers.google.com"]
+    helper = gcloud.cmd

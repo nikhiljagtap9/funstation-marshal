@@ -29,4 +29,3 @@ gcs-key.json
 
 # Google Cloud credentials
 gcs-key.json
-/lib/gcs.ts
