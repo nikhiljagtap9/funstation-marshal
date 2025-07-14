@@ -70,7 +70,7 @@ interface GameData {
 }
 
 const playNotificationSound = () => {
-	const audio = new Audio("/notification.mp3");
+	const audio = new Audio("/notification-sound-349341.mp3");
 	audio.play();
 };
 

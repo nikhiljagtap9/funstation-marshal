@@ -223,7 +223,7 @@ export default function AdminDashboard() {
 	// Add a notification sound
 	const playNotificationSound = () => {
 		try {
-			const audio = new Audio("/notification.mp3");
+			const audio = new Audio("/notification-sound-349341.mp3");
 			audio.play().catch((error) => {
 				console.log(
 					"Audio playback failed (user interaction required):",
