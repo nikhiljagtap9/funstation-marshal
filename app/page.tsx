@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import LoginForm from "@/components/login-form";
-import RegisterForm from "@/components/register-form";
+import LoginForm from "./components/login-form";
+import RegisterForm from "./components/register-form";
 import { Button } from "./components/ui/button";
 import Image from "next/image";
 
