@@ -12,7 +12,19 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { MoreVertical, Trophy, Users, LogOut, Bell } from "lucide-react";
+import {
+	MoreVertical,
+	Trophy,
+	Users,
+	LogOut,
+	Bell,
+	User,
+	Clock,
+	Landmark,
+	Flag,
+	Timer,
+	Award,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { Bar } from "react-chartjs-2";
@@ -27,6 +39,7 @@ import {
 } from "chart.js";
 import SparksAnimation from "@/components/sparks-animation";
 import ShowResultsButton from "@/components/show-results-button";
+import React from "react";
 
 interface TeamData {
 	username: string;
@@ -84,11 +97,37 @@ export default function AdminDashboard() {
 	// Add state to track WebSocket connection status
 	const [wsConnected, setWsConnected] = useState(false);
 
-
 	const [revealStep, setRevealStep] = useState<
 		"splash" | "team" | "final" | null
 	>(null);
 	const [currentTeamIdx, setCurrentTeamIdx] = useState(0);
+
+	const [progressModalOpen, setProgressModalOpen] = useState(false);
+	const [progressModalTeam, setProgressModalTeam] = useState<TeamData | null>(
+		null
+	);
+	const [progressModalLoading, setProgressModalLoading] = useState(false);
+	const [progressModalData, setProgressModalData] = useState<any>(null);
+
+	const handleShowProgressModal = async (team: TeamData) => {
+		setProgressModalTeam(team);
+		setProgressModalOpen(true);
+		setProgressModalLoading(true);
+		try {
+			const res = await fetch(
+				`/api/get-team-record?teamId=${encodeURIComponent(
+					team.username
+				)}`
+			);
+			if (!res.ok) throw new Error("Failed to fetch team record");
+			const data = await res.json();
+			setProgressModalData(data);
+		} catch (err) {
+			setProgressModalData(null);
+		} finally {
+			setProgressModalLoading(false);
+		}
+	};
 
 	// When Show Results is clicked, start splash
 	const handleShowResults = () => {
@@ -483,6 +522,35 @@ export default function AdminDashboard() {
 		maintainAspectRatio: false,
 	};
 
+	// Update totalFinalTime calculation to include penalties for each game
+	let totalFinalTime = 0;
+	if (
+		progressModalData &&
+		progressModalData.gameProgress &&
+		progressModalData.gameProgress.games
+	) {
+		totalFinalTime = progressModalData.gameProgress.games.reduce(
+			(sum: number, g: any) =>
+				sum +
+				(g.details?.finalScore ??
+					(g.time ?? 0) + (g.details?.penaltySeconds ?? 0) * 5),
+			0
+		);
+	}
+
+	// Calculate total penalty seconds for all games
+	let totalPenaltySeconds = 0;
+	if (
+		progressModalData &&
+		progressModalData.gameProgress &&
+		progressModalData.gameProgress.games
+	) {
+		totalPenaltySeconds = progressModalData.gameProgress.games.reduce(
+			(sum: number, g: any) => sum + (g.details?.penaltySeconds ?? 0) * 5,
+			0
+		);
+	}
+
 	if (loading && !initialLoadComplete) {
 		return (
 			<div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white">
@@ -839,7 +907,7 @@ export default function AdminDashboard() {
 										className="text-4xl md:text-5xl font-extrabold text-orange-500 text-center mb-6"
 										style={{ textShadow: "0 2px 8px #000" }}
 									>
-										CONGARTULATIONS
+										CONGRATULATIONS
 									</h2>
 									<h3
 										className="text-3xl md:text-4xl font-extrabold text-yellow-400 text-center mb-2"
@@ -921,9 +989,7 @@ export default function AdminDashboard() {
 											onClick={() =>
 												setSelectedTeam(winner)
 											}
-										>
-											<MoreVertical className="w-5 h-5 text-gray-600" />
-										</Button>
+										></Button>
 									</CardHeader>
 									<CardContent className="space-y-2">
 										<div className="flex flex-col gap-1">
@@ -1166,6 +1232,14 @@ export default function AdminDashboard() {
 										</span>
 									</span>
 								</div>
+								<button
+									className="p-2 rounded-full hover:bg-gray-200 focus:outline-none"
+									onClick={() =>
+										handleShowProgressModal(team)
+									}
+								>
+									<MoreVertical className="w-6 h-6 text-gray-600" />
+								</button>
 							</div>
 							<Badge className="mt-2 px-3 py-1 text-sm font-semibold bg-gray-300 text-gray-700 border-gray-400">
 								On Progress
@@ -1611,6 +1685,190 @@ export default function AdminDashboard() {
 					</DialogContent>
 				</Dialog>
 			)}
+			{/* Progress Modal */}
+			<Dialog
+				open={progressModalOpen}
+				onOpenChange={setProgressModalOpen}
+			>
+				<DialogContent className="max-w-lg w-full p-0 sm:p-6 rounded-2xl shadow-2xl bg-white/95 border-none">
+					<DialogHeader>
+						<DialogTitle className="text-2xl font-bold flex items-center justify-center gap-2 text-gray-900 mb-4">
+							<Users className="w-7 h-7 text-yellow-500" /> Team
+							Details
+						</DialogTitle>
+					</DialogHeader>
+					{progressModalLoading ? (
+						<div className="flex flex-col items-center justify-center min-h-[200px]">
+							<span className="text-yellow-500 font-semibold text-lg">
+								Loading...
+							</span>
+						</div>
+					) : progressModalData &&
+					  progressModalData.gameProgress &&
+					  Array.isArray(progressModalData.gameProgress.games) &&
+					  progressModalData.gameProgress.games.length > 0 ? (
+						<div className="px-4 pb-6 w-full">
+							<div className="mb-4 flex flex-col gap-2 items-start">
+								<div className="flex items-center gap-2">
+									<Users className="w-5 h-5 text-blue-500" />
+									<span className="font-bold text-lg text-gray-800">
+										Team Name:
+									</span>
+									<span className="font-semibold text-gray-900">
+										{progressModalData.teamName}
+									</span>
+								</div>
+								<div className="flex items-center gap-2">
+									<User className="w-5 h-5 text-green-600" />
+									<span className="font-bold text-lg text-gray-800">
+										Marshal Name:
+									</span>
+									<span className="font-semibold text-gray-900">
+										{progressModalData.marshalName}
+									</span>
+								</div>
+								<div className="flex items-center gap-2">
+									<Clock className="w-5 h-5 text-yellow-600" />
+									<span className="font-bold text-lg text-gray-800">
+										Total Time:
+									</span>
+
+									<span className="font-semibold text-yellow-700">
+										{formatHMS(totalFinalTime)}
+									</span>
+								</div>
+							</div>
+							<div className="mt-4">
+								<h3 className="text-base font-semibold text-gray-700 mb-2">
+									Game Results:
+								</h3>
+								<div className="flex flex-col gap-2">
+									{progressModalData.gameProgress.games.map(
+										(game: any, idx: number) => {
+											// Icon mapping for each game
+											const iconMap: Record<
+												string,
+												React.ReactNode
+											> = {
+												"House of Cards": (
+													<span className="text-2xl">
+														🏠
+													</span>
+												),
+												"Office Chair Race": (
+													<span className="text-2xl">
+														🪑
+													</span>
+												),
+												"Around the Clock": (
+													<span className="text-2xl">
+														🕐
+													</span>
+												),
+												"Pass the Spud": (
+													<span className="text-2xl">
+														🥔
+													</span>
+												),
+												"Skin the Snake": (
+													<span className="text-2xl">
+														🐍
+													</span>
+												),
+											};
+											const penaltySeconds = game.details
+												?.penaltySeconds
+												? game.details.penaltySeconds *
+												  5
+												: 0;
+											return (
+												<motion.div
+													key={game.name}
+													initial={{
+														opacity: 0,
+														x: 40,
+													}}
+													animate={{
+														opacity: 1,
+														x: 0,
+													}}
+													transition={{
+														delay: 0.1 * idx,
+													}}
+													className="flex flex-col gap-1"
+												>
+													<div className="flex items-center justify-between bg-gray-100 rounded-lg px-3 py-2">
+														<span className="flex items-center gap-2 font-semibold text-gray-700">
+															{iconMap[
+																game.name
+															] || (
+																<Trophy className="w-5 h-5 text-gray-400" />
+															)}{" "}
+															{game.name}:
+														</span>
+														<span
+															className={`font-mono font-bold ${
+																game.time &&
+																game.time > 0
+																	? "text-green-600"
+																	: "text-yellow-500"
+															}`}
+														>
+															{(() => {
+																if (
+																	game.details &&
+																	game.details
+																		.finalScore >
+																		0
+																) {
+																	return formatHMS(
+																		game
+																			.details
+																			.finalScore
+																	);
+																} else if (
+																	game.time &&
+																	game.time >
+																		0
+																) {
+																	return (
+																		game.timeFormatted ||
+																		formatMMSS(
+																			game.time
+																		)
+																	);
+																} else {
+																	return "On Progress";
+																}
+															})()}
+															{penaltySeconds >
+																0 && (
+																<span className="text-red-600 font-normal ml-2">
+																	+
+																	{
+																		penaltySeconds
+																	}
+																	s penalty
+																</span>
+															)}
+														</span>
+													</div>
+												</motion.div>
+											);
+										}
+									)}
+								</div>
+							</div>
+						</div>
+					) : (
+						<div className="flex flex-col items-center justify-center min-h-[200px]">
+							<span className="text-gray-500 font-semibold text-lg">
+								On Progress
+							</span>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

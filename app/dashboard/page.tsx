@@ -412,10 +412,22 @@ export default function DashboardPage() {
 		return `${mins}:${secs.toString().padStart(2, "0")}`;
 	};
 
-	const totalTime = gameResults.reduce(
-		(sum, game) => sum + (game.time || 0),
+	// Update totalTime calculation to include penalties for each game
+	const totalTime = (marshalData?.gameProgress?.games || []).reduce(
+		(sum: number, g: any) =>
+			sum +
+			(g.details?.finalScore ??
+				(g.time ?? 0) + (g.details?.penaltySeconds ?? 0) * 5),
 		0
 	);
+
+	// Calculate Office Chair Race penalty seconds
+	const officeChairGame = (marshalData?.gameProgress?.games || []).find(
+		(g: any) => g.name === "Office Chair Race"
+	);
+	const officeChairPenalty = officeChairGame?.details?.penaltySeconds
+		? officeChairGame.details.penaltySeconds * 5
+		: 0;
 
 	if (loading) {
 		return (
@@ -663,6 +675,12 @@ export default function DashboardPage() {
 										<p className="text-2xl font-bold text-gray-800">
 											{formatTime(totalTime)}
 										</p>
+										{officeChairPenalty > 0 && (
+											<p className="text-sm text-red-600">
+												Office Chair Race Penalty: +
+												{officeChairPenalty}s
+											</p>
+										)}
 									</div>
 									<div>
 										<p className="text-sm text-gray-600">

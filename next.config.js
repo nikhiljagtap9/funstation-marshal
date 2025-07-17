@@ -11,6 +11,10 @@ const nextConfig = {
 		}
 		return config;
 	},
+	experimental: {
+		serverComponentsExternalPackages: ["@google-cloud/storage"],
+	},
+	output: "standalone",
 };
 
 module.exports = nextConfig;

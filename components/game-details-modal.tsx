@@ -98,13 +98,7 @@ export default function GameDetailsModal({
 		let baseTime = editValues.minutes * 60 + editValues.seconds;
 		let adjustments = 0;
 		if (game.name === "House of Cards") {
-			if (editValues.creativityBonus) adjustments -= 15;
-			if (editValues.winnerStatus === "first") adjustments += 60;
-			else if (editValues.winnerStatus === "second") adjustments += 75;
-			else if (editValues.winnerStatus === "third") adjustments += 90;
-			else if (editValues.winnerStatus === "fourth") adjustments += 105;
-			else if (editValues.winnerStatus === "fifth") adjustments += 120;
-			setCalculatedTime(Math.max(0, baseTime + adjustments));
+			setCalculatedTime(Math.max(0, baseTime));
 		} else if (game.name === "Office Chair Race") {
 			setCalculatedTime(Math.max(0, baseTime)); // do not add penalties
 		} else {
@@ -188,253 +182,176 @@ export default function GameDetailsModal({
 				</DialogHeader>
 				{canEdit ? (
 					<form onSubmit={handleSubmit} className="space-y-6">
-						{game.name === "House of Cards" ? (
-							<>
+						{[
+							"Around the Clock",
+							"Pass the Spud",
+							"Skin the Snake",
+						].includes(game.name) &&
+							(editValues.minutes > 10 ||
+								(editValues.minutes === 10 &&
+									editValues.seconds > 0)) && (
 								<div className="mb-4">
-									<label
-										className={`flex items-center gap-2 text-base font-medium text-gray-700 ${
-											originalCreativityBonus
-												? "bg-yellow-100 border-2 border-yellow-400 rounded px-2 py-1"
-												: ""
-										}`}
-									>
-										<input
-											type="checkbox"
-											id="creativity"
-											name="creativityBonus"
-											checked={editValues.creativityBonus}
-											onChange={handleChange}
-											className="rounded accent-yellow-400"
-										/>
-										Creativity Bonus (-15 seconds)
+									<div className="bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 p-4 rounded-md text-center font-semibold">
+										Maximum allowed time is 10:00. Please
+										select a valid time.
+									</div>
+								</div>
+							)}
+						<div className="mb-4">
+							<div className="font-semibold text-gray-700 mb-1">
+								Completion Time
+							</div>
+							<div className="flex gap-4 items-end">
+								<div>
+									<label className="block text-sm font-medium text-gray-700">
+										Minutes
 									</label>
-									<div className="text-sm text-gray-500 ml-6">
-										Check if the team built something
-										creative and awesome
-									</div>
-								</div>
-								<div className="mb-4">
-									<div className="font-semibold text-gray-700 mb-1">
-										Team Position
-									</div>
-									<RadioGroup
-										value={editValues.winnerStatus}
-										onValueChange={handleRadioChange}
-										className="flex flex-col gap-2"
+									<Select
+										onValueChange={(value) =>
+											setEditValues((prev) => ({
+												...prev,
+												minutes: Number(value),
+											}))
+										}
+										value={editValues.minutes.toString()}
 									>
-										<label
-											className={`flex items-center gap-2 ${
-												originalWinnerStatus === "first"
-													? "bg-yellow-100 border-2 border-yellow-400 rounded px-2 py-1"
-													: ""
-											}`}
-										>
-											<RadioGroupItem
-												value="first"
-												id="first"
-											/>
-											1st Place (+1:00 minute)
-										</label>
-										<label
-											className={`flex items-center gap-2 ${
-												originalWinnerStatus ===
-												"second"
-													? "bg-yellow-100 border-2 border-yellow-400 rounded px-2 py-1"
-													: ""
-											}`}
-										>
-											<RadioGroupItem
-												value="second"
-												id="second"
-											/>
-											2nd Place (+1:15 minutes)
-										</label>
-										<label
-											className={`flex items-center gap-2 ${
-												originalWinnerStatus === "third"
-													? "bg-yellow-100 border-2 border-yellow-400 rounded px-2 py-1"
-													: ""
-											}`}
-										>
-											<RadioGroupItem
-												value="third"
-												id="third"
-											/>
-											3rd Place (+1:30 minutes)
-										</label>
-									</RadioGroup>
-									<div className="text-sm text-gray-500 ml-1 mt-1">
-										Position-based time adjustments for
-										competitive scoring
-									</div>
+										<SelectTrigger className="w-[180px]">
+											<SelectValue placeholder="Select a minute" />
+										</SelectTrigger>
+										<SelectContent>
+											{[...Array(11).keys()].map((m) => (
+												<SelectItem
+													key={m}
+													value={m.toString()}
+												>
+													{m}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 								</div>
-								{editValues.minutes === 10 ? (
-									<div className="mb-4">
-										<div className="bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 p-4 rounded-md text-center font-semibold">
-											Maximum allowed time is 10:00.
+								<div>
+									<label className="block text-sm font-medium text-gray-700">
+										Seconds
+									</label>
+									<Select
+										onValueChange={(value) =>
+											setEditValues((prev) => ({
+												...prev,
+												seconds: Number(value),
+											}))
+										}
+										value={editValues.seconds
+											.toString()
+											.padStart(2, "0")}
+									>
+										<SelectTrigger className="w-[180px]">
+											<SelectValue placeholder="Select a second" />
+										</SelectTrigger>
+										<SelectContent>
+											{[...Array(60).keys()].map((s) => (
+												<SelectItem
+													key={s}
+													value={s
+														.toString()
+														.padStart(2, "0")}
+												>
+													{s
+														.toString()
+														.padStart(2, "0")}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+								{game.name === "Office Chair Race" && (
+									<div>
+										<label className="block text-sm font-medium text-gray-700">
+											Penalties (mistakes)
+										</label>
+										<div className="flex items-center space-x-2 mt-1">
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onClick={() =>
+													handleDecrement(
+														"penaltySeconds"
+													)
+												}
+												disabled={
+													calculatedTime >= 600 ||
+													editValues.penaltySeconds <=
+														0
+												}
+											>
+												-
+											</Button>
+											<span className="text-gray-800 px-4 font-semibold">
+												{editValues.penaltySeconds}
+											</span>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onClick={() =>
+													handleIncrement(
+														"penaltySeconds"
+													)
+												}
+												disabled={calculatedTime >= 600}
+											>
+												+
+											</Button>
+										</div>
+										<div className="text-sm text-gray-500 mt-1">
+											Each mistake adds 5 seconds (+
+											{editValues.penaltySeconds * 5}s
+											total)
 										</div>
 									</div>
-								) : (
-									<>
-										<div className="mb-4">
-											<div className="font-semibold text-gray-700 mb-1">
-												Completion Time
-											</div>
-										</div>
-									</>
 								)}
-								<div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200 mt-4">
-									<div className="flex items-center justify-center gap-2 mb-2">
-										<span className="text-gray-700">
-											Current Time
-										</span>
+							</div>
+						</div>
+						<div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200 mt-4">
+							<div className="flex items-center justify-center gap-2 mb-2">
+								<span className="text-gray-700">
+									Current Time
+								</span>
+							</div>
+							<div className="text-3xl font-bold text-gray-800">
+								{Math.floor(
+									(editValues.minutes * 60 +
+										editValues.seconds +
+										(game.name === "Office Chair Race"
+											? editValues.penaltySeconds * 5
+											: 0)) /
+										60
+								)
+									.toString()
+									.padStart(2, "0")}
+								:
+								{(
+									(editValues.minutes * 60 +
+										editValues.seconds +
+										(game.name === "Office Chair Race"
+											? editValues.penaltySeconds * 5
+											: 0)) %
+									60
+								)
+									.toString()
+									.padStart(2, "0")}
+							</div>
+						</div>
+						{game.name === "Office Chair Race" &&
+							editValues.penaltySeconds > 0 && (
+								<>
+									<div className="text-red-600 text-sm font-semibold mt-2">
+										Penalties: +
+										{editValues.penaltySeconds * 5}s
 									</div>
-									<div className="text-3xl font-bold text-gray-800 bg-yellow-100 border-2 border-yellow-400 rounded-lg px-8 py-3 shadow-sm">
-										{Math.floor(calculatedTime / 60)
-											.toString()
-											.padStart(2, "0")}
-										:
-										{(calculatedTime % 60)
-											.toString()
-											.padStart(2, "0")}
-									</div>
-								</div>
-							</>
-						) : game.name === "Office Chair Race" ? (
-							<>
-								<div className="mb-4">
-									<div className="font-semibold text-gray-700 mb-1">
-										Completion Time
-									</div>
-									<div className="flex gap-4 items-end">
-										<div>
-											<label className="block text-sm font-medium text-gray-700">
-												Minutes
-											</label>
-											<Select
-												value={editValues.minutes.toString()}
-												onValueChange={(value) =>
-													setEditValues({
-														...editValues,
-														minutes: Number(value),
-													})
-												}
-											>
-												<SelectTrigger className="w-[180px]">
-													<SelectValue placeholder="Select a minute" />
-												</SelectTrigger>
-												<SelectContent>
-													{[...Array(11).keys()].map(
-														(m) => (
-															<SelectItem
-																key={m}
-																value={m.toString()}
-															>
-																{m}
-															</SelectItem>
-														)
-													)}
-												</SelectContent>
-											</Select>
-										</div>
-										<div>
-											<label className="block text-sm font-medium text-gray-700">
-												Seconds
-											</label>
-											<Select
-												value={editValues.seconds
-													.toString()
-													.padStart(2, "0")}
-												onValueChange={(value) =>
-													setEditValues({
-														...editValues,
-														seconds: Number(value),
-													})
-												}
-											>
-												<SelectTrigger className="w-[180px]">
-													<SelectValue placeholder="Select a second" />
-												</SelectTrigger>
-												<SelectContent>
-													{[...Array(60).keys()].map(
-														(s) => (
-															<SelectItem
-																key={s}
-																value={s
-																	.toString()
-																	.padStart(
-																		2,
-																		"0"
-																	)}
-															>
-																{s
-																	.toString()
-																	.padStart(
-																		2,
-																		"0"
-																	)}
-															</SelectItem>
-														)
-													)}
-												</SelectContent>
-											</Select>
-										</div>
-										<div>
-											<label className="block text-sm font-medium text-gray-700">
-												Penalties (mistakes)
-											</label>
-											<div className="flex items-center space-x-2 mt-1">
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													onClick={() =>
-														handleDecrement(
-															"penaltySeconds"
-														)
-													}
-													disabled={
-														calculatedTime >= 600 ||
-														editValues.penaltySeconds <=
-															0
-													}
-												>
-													-
-												</Button>
-												<span className="text-gray-800 px-4 font-semibold">
-													{editValues.penaltySeconds}
-												</span>
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													onClick={() =>
-														handleIncrement(
-															"penaltySeconds"
-														)
-													}
-													disabled={
-														calculatedTime >= 600
-													}
-												>
-													+
-												</Button>
-											</div>
-											<div className="text-sm text-gray-500 mt-1">
-												Each mistake adds 5 seconds (+
-												{editValues.penaltySeconds * 5}s
-												total)
-											</div>
-										</div>
-									</div>
-								</div>
-								<div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200 mt-4">
-									<div className="flex items-center justify-center gap-2 mb-2">
-										<span className="text-gray-700">
-											Current Time
-										</span>
-									</div>
-									<div className="text-3xl font-bold text-gray-800">
+									<div className="text-green-700 text-base font-bold mt-1">
+										Final Score:{" "}
 										{Math.floor(
 											(editValues.minutes * 60 +
 												editValues.seconds +
@@ -453,153 +370,8 @@ export default function GameDetailsModal({
 											.toString()
 											.padStart(2, "0")}
 									</div>
-								</div>
-								{game.name === "Office Chair Race" &&
-									editValues.penaltySeconds > 0 && (
-										<>
-											<div className="text-red-600 text-sm font-semibold mt-2">
-												Penalties: +
-												{editValues.penaltySeconds * 5}s
-											</div>
-											<div className="text-green-700 text-base font-bold mt-1">
-												Final Score:{" "}
-												{Math.floor(
-													(editValues.minutes * 60 +
-														editValues.seconds +
-														editValues.penaltySeconds *
-															5) /
-														60
-												)
-													.toString()
-													.padStart(2, "0")}
-												:
-												{(
-													(editValues.minutes * 60 +
-														editValues.seconds +
-														editValues.penaltySeconds *
-															5) %
-													60
-												)
-													.toString()
-													.padStart(2, "0")}
-											</div>
-										</>
-									)}
-							</>
-						) : (
-							<>
-								{[
-									"Around the Clock",
-									"Pass the Spud",
-									"Skin the Snake",
-								].includes(game.name) &&
-									(editValues.minutes > 10 ||
-										(editValues.minutes === 10 &&
-											editValues.seconds > 0)) && (
-										<div className="mb-4">
-											<div className="bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 p-4 rounded-md text-center font-semibold">
-												Maximum allowed time is 10:00.
-												Please select a valid time.
-											</div>
-										</div>
-									)}
-								<div className="mb-4">
-									<div className="font-semibold text-gray-700 mb-1">
-										Completion Time
-									</div>
-									<div className="flex gap-4 items-end">
-										<div>
-											<label className="block text-sm font-medium text-gray-700">
-												Minutes
-											</label>
-											<Select
-												onValueChange={(value) =>
-													setEditValues((prev) => ({
-														...prev,
-														minutes: Number(value),
-													}))
-												}
-												value={editValues.minutes.toString()}
-											>
-												<SelectTrigger className="w-[180px]">
-													<SelectValue placeholder="Select a minute" />
-												</SelectTrigger>
-												<SelectContent>
-													{[...Array(11).keys()].map(
-														(m) => (
-															<SelectItem
-																key={m}
-																value={m.toString()}
-															>
-																{m}
-															</SelectItem>
-														)
-													)}
-												</SelectContent>
-											</Select>
-										</div>
-										<div>
-											<label className="block text-sm font-medium text-gray-700">
-												Seconds
-											</label>
-											<Select
-												onValueChange={(value) =>
-													setEditValues((prev) => ({
-														...prev,
-														seconds: Number(value),
-													}))
-												}
-												value={editValues.seconds
-													.toString()
-													.padStart(2, "0")}
-											>
-												<SelectTrigger className="w-[180px]">
-													<SelectValue placeholder="Select a second" />
-												</SelectTrigger>
-												<SelectContent>
-													{[...Array(60).keys()].map(
-														(s) => (
-															<SelectItem
-																key={s}
-																value={s
-																	.toString()
-																	.padStart(
-																		2,
-																		"0"
-																	)}
-															>
-																{s
-																	.toString()
-																	.padStart(
-																		2,
-																		"0"
-																	)}
-															</SelectItem>
-														)
-													)}
-												</SelectContent>
-											</Select>
-										</div>
-									</div>
-								</div>
-								<div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200 mt-4">
-									<div className="flex items-center justify-center gap-2 mb-2">
-										<span className="text-gray-700">
-											Current Time
-										</span>
-									</div>
-									<div className="text-3xl font-bold text-gray-800">
-										{Math.floor(calculatedTime / 60)
-											.toString()
-											.padStart(2, "0")}
-										:
-										{(calculatedTime % 60)
-											.toString()
-											.padStart(2, "0")}
-									</div>
-								</div>
-							</>
-						)}
+								</>
+							)}
 						<div className="flex justify-end mt-4">
 							<Button
 								type="submit"
@@ -638,7 +410,11 @@ export default function GameDetailsModal({
 										{Math.floor(
 											(editValues.minutes * 60 +
 												editValues.seconds +
-												editValues.penaltySeconds * 5) /
+												(game.name ===
+												"Office Chair Race"
+													? editValues.penaltySeconds *
+													  5
+													: 0)) /
 												60
 										)
 											.toString()
@@ -647,7 +423,11 @@ export default function GameDetailsModal({
 										{(
 											(editValues.minutes * 60 +
 												editValues.seconds +
-												editValues.penaltySeconds * 5) %
+												(game.name ===
+												"Office Chair Race"
+													? editValues.penaltySeconds *
+													  5
+													: 0)) %
 											60
 										)
 											.toString()
@@ -659,147 +439,24 @@ export default function GameDetailsModal({
 								</CardContent>
 							</Card>
 
-							<Card className="bg-gray-50 border-gray-200">
-								<CardHeader className="pb-2">
-									<CardTitle className="text-gray-800 flex items-center gap-2 text-base md:text-lg">
-										<Trophy className="w-4 h-4 md:w-5 md:h-5" />
-										Base Score
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className="text-2xl md:text-3xl font-bold text-gray-800">
-										{formatTime(game.score || 0)}
-									</div>
-									<p className="text-xs md:text-sm text-gray-600 mt-1">
-										Original completion time
-									</p>
-								</CardContent>
-							</Card>
+							{game.completedAt && (
+								<Card className="bg-gray-50 border-gray-200">
+									<CardHeader className="pb-2">
+										<CardTitle className="text-gray-800 flex items-center gap-2 text-base md:text-lg">
+											<Calendar className="w-4 h-4 md:w-5 md:h-5" />
+											Completion Time
+										</CardTitle>
+									</CardHeader>
+									<CardContent>
+										<p className="text-sm md:text-base text-gray-600">
+											{formatDateTime(
+												game.completedAt || ""
+											)}
+										</p>
+									</CardContent>
+								</Card>
+							)}
 						</div>
-
-						{/* Completion Details */}
-						{game.completedAt && (
-							<Card className="bg-gray-50 border-gray-200">
-								<CardHeader className="pb-2">
-									<CardTitle className="text-gray-800 flex items-center gap-2 text-base md:text-lg">
-										<Calendar className="w-4 h-4 md:w-5 md:h-5" />
-										Completion Time
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<p className="text-sm md:text-base text-gray-600">
-										{formatDateTime(game.completedAt)}
-									</p>
-								</CardContent>
-							</Card>
-						)}
-
-						{/* Score Adjustments */}
-						{game.details && (
-							<Card className="bg-gray-50 border-gray-200">
-								<CardHeader className="pb-2">
-									<CardTitle className="text-gray-800 flex items-center gap-2 text-base md:text-lg">
-										<Star className="w-4 h-4 md:w-5 md:h-5" />
-										Score Adjustments
-									</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-2 md:space-y-3">
-									<div className="flex items-center justify-between">
-										<span className="text-sm md:text-base text-gray-600">
-											Base Time:
-										</span>
-										<span className="text-sm md:text-base text-gray-800 font-semibold">
-											{formatTime(game.score || 0)}
-										</span>
-									</div>
-
-									{game.details.creativityBonus && (
-										<div className="flex items-center justify-between text-green-600">
-											<span className="flex items-center gap-2 text-sm md:text-base">
-												<Minus className="w-3 h-3 md:w-4 md:h-4" />
-												Creativity Bonus:
-											</span>
-											<span className="text-sm md:text-base font-semibold">
-												-15 seconds
-											</span>
-										</div>
-									)}
-
-									{game.details.penaltySeconds > 0 && (
-										<div className="flex items-center justify-between text-red-600">
-											<span className="flex items-center gap-2 text-sm md:text-base">
-												<Plus className="w-3 h-3 md:w-4 md:h-4" />
-												Penalties (
-												{game.details.penaltySeconds}{" "}
-												mistakes):
-											</span>
-											<span className="text-sm md:text-base font-semibold">
-												+
-												{game.details.penaltySeconds *
-													5}{" "}
-												seconds
-											</span>
-										</div>
-									)}
-
-									{game.details.bonusSeconds !== 0 && (
-										<div
-											className={`flex items-center justify-between ${
-												game.details.bonusSeconds > 0
-													? "text-red-600"
-													: "text-green-600"
-											}`}
-										>
-											<span className="flex items-center gap-2 text-sm md:text-base">
-												{game.details.bonusSeconds >
-												0 ? (
-													<Plus className="w-3 h-3 md:w-4 md:h-4" />
-												) : (
-													<Minus className="w-3 h-3 md:w-4 md:h-4" />
-												)}
-												Other Adjustments:
-											</span>
-											<span className="text-sm md:text-base font-semibold">
-												{game.details.bonusSeconds > 0
-													? "+"
-													: ""}
-												{game.details.bonusSeconds}{" "}
-												seconds
-											</span>
-										</div>
-									)}
-
-									<div className="border-t border-gray-200 pt-2 md:pt-3 mt-2 md:mt-3">
-										<div className="flex items-center justify-between text-gray-800 font-bold">
-											<span className="text-sm md:text-base">
-												Final Score:
-											</span>
-											<span className="text-lg md:text-xl">
-												{Math.floor(
-													(editValues.minutes * 60 +
-														editValues.seconds +
-														editValues.penaltySeconds *
-															5) /
-														60
-												)
-													.toString()
-													.padStart(2, "0")}
-												:
-												{(
-													(editValues.minutes * 60 +
-														editValues.seconds +
-														editValues.penaltySeconds *
-															5) %
-													60
-												)
-													.toString()
-													.padStart(2, "0")}
-											</span>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-						)}
 
 						{/* Performance Rating */}
 						<Card className="bg-gray-50 border-gray-200">
@@ -836,6 +493,85 @@ export default function GameDetailsModal({
 								</p>
 							</CardContent>
 						</Card>
+					</div>
+				)}
+				{!canEdit && (
+					<div className="space-y-4 mt-6">
+						{/* House of Cards: Base Score and Final Time */}
+						{game.name === "House of Cards" && (
+							<>
+								<div className="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between border border-gray-200">
+									<span className="font-semibold text-gray-700">
+										Base Score:
+									</span>
+									<span className="text-2xl font-bold text-green-700">
+										{formatTime(
+											game.details?.finalScore ??
+												game.time ??
+												0
+										)}
+									</span>
+								</div>
+								<div className="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between border border-gray-200">
+									<span className="font-semibold text-gray-700">
+										Final Time:
+									</span>
+									<span className="text-2xl font-bold text-green-700">
+										{formatTime(
+											game.details?.finalScore ??
+												game.time ??
+												0
+										)}
+									</span>
+								</div>
+							</>
+						)}
+						{/* Office Chair Race: Penalties and Adjusted Time */}
+						{game.name === "Office Chair Race" && (
+							<>
+								<div className="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between border border-gray-200">
+									<span className="font-semibold text-gray-700">
+										Penalties:
+									</span>
+									<span className="text-xl font-bold text-red-600">
+										{game.details?.penaltySeconds ?? 0} x 5s
+										={" "}
+										{(game.details?.penaltySeconds ?? 0) *
+											5}
+										s
+									</span>
+								</div>
+								<div className="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between border border-gray-200">
+									<span className="font-semibold text-gray-700">
+										Final Time:
+									</span>
+									<span className="text-2xl font-bold text-green-700">
+										{formatTime(
+											(game.time ?? 0) +
+												(game.details?.penaltySeconds ??
+													0) *
+													5
+										)}
+									</span>
+								</div>
+							</>
+						)}
+						{/* All games: Final Time */}
+						{game.name !== "House of Cards" &&
+							game.name !== "Office Chair Race" && (
+								<div className="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between border border-gray-200">
+									<span className="font-semibold text-gray-700">
+										Final Time:
+									</span>
+									<span className="text-2xl font-bold text-green-700">
+										{formatTime(
+											game.details?.finalScore ??
+												game.time ??
+												0
+										)}
+									</span>
+								</div>
+							)}
 					</div>
 				)}
 			</DialogContent>

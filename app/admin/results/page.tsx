@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import SparksAnimation from "@/components/sparks-animation";
+import GameCompletionAnimation from "@/components/game-completion-animation";
+import NewYearAnimation from "@/components/new-year-animation";
 
 interface TeamData {
 	username: string;
@@ -19,6 +21,7 @@ export default function AdminResultsReveal() {
 	const [step, setStep] = useState<"splash" | "team" | "final">("splash");
 	const [currentIdx, setCurrentIdx] = useState(0);
 	const [showSparks, setShowSparks] = useState(false);
+	const [showRevealAnimation, setShowRevealAnimation] = useState(false);
 	const router = useRouter();
 
 	useEffect(() => {
@@ -60,6 +63,15 @@ export default function AdminResultsReveal() {
 		fetchTeams();
 	}, []);
 
+	useEffect(() => {
+		if (step === "final") {
+			const timer = setTimeout(() => {
+				handleFinish();
+			}, 4000);
+			return () => clearTimeout(timer);
+		}
+	}, [step]);
+
 	// Reveal order: last place to first
 	const revealOrder = [...teams].reverse();
 	const placeLabels = [
@@ -84,11 +96,15 @@ export default function AdminResultsReveal() {
 			setStep("team");
 			setCurrentIdx(0);
 		} else if (step === "team") {
-			if (currentIdx < revealOrder.length - 1) {
-				setCurrentIdx(currentIdx + 1);
-			} else {
-				setStep("final");
-			}
+			setShowRevealAnimation(true);
+			setTimeout(() => {
+				setShowRevealAnimation(false);
+				if (currentIdx < revealOrder.length - 1) {
+					setCurrentIdx(currentIdx + 1);
+				} else {
+					setStep("final");
+				}
+			}, 2000);
 		}
 	};
 
@@ -142,68 +158,83 @@ export default function AdminResultsReveal() {
 						</motion.div>
 					)}
 					{step === "team" && !loading && revealOrder[currentIdx] && (
-						<motion.div
-							key={revealOrder[currentIdx].username}
-							initial={{ opacity: 0, y: 40 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -40 }}
-							transition={{ duration: 0.5 }}
-							className="bg-black bg-opacity-80 rounded-xl px-4 py-10 md:px-8 md:py-16 flex flex-col items-center w-full max-w-xl"
-						>
-							<h2
-								className="text-3xl md:text-5xl font-extrabold text-orange-500 text-center mb-6"
-								style={{ textShadow: "0 2px 8px #000" }}
+						<>
+							{showRevealAnimation && <GameCompletionAnimation />}
+							<motion.div
+								key={revealOrder[currentIdx].username}
+								initial={{ opacity: 0, y: 40 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -40 }}
+								transition={{ duration: 0.5 }}
+								className="bg-black bg-opacity-80 rounded-xl px-4 py-10 md:px-8 md:py-16 flex flex-col items-center w-full max-w-xl"
+								style={{
+									pointerEvents: showRevealAnimation
+										? "none"
+										: "auto",
+									opacity: showRevealAnimation ? 0.3 : 1,
+								}}
 							>
-								CONGRATULATIONS
-							</h2>
-							<h3
-								className="text-2xl md:text-4xl lg:text-5xl font-extrabold text-yellow-400 text-center mb-2"
-								style={{ textShadow: "0 2px 8px #000" }}
-							>
-								{revealOrder[currentIdx].teamName.toUpperCase()}{" "}
-								-{" "}
-								{placeLabels[
-									revealOrder.length - 1 - currentIdx
-								] ||
-									`${
-										revealOrder.length - currentIdx
-									}TH PLACE`}
-							</h3>
-							{/* <h4 className="text-lg md:text-2xl font-extrabold text-yellow-400 text-center mb-6" style={{textShadow:'0 2px 8px #000'}}>
-                GROUP {revealOrder[currentIdx].groupName?.toUpperCase() || ""}
-              </h4> */}
-							<button
-								className="mt-8 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl md:text-2xl px-8 py-3 md:px-10 md:py-4 rounded-lg shadow-lg transition-all w-full max-w-xs"
-								onClick={handleNext}
-							>
-								{currentIdx === revealOrder.length - 1
-									? "Finish"
-									: "Next →"}
-							</button>
-						</motion.div>
+								<h2
+									className="text-5xl md:text-8xl font-extrabold text-orange-500 text-center mb-6"
+									style={{ textShadow: "0 2px 8px #000" }}
+								>
+									CONGRATULATIONS
+								</h2>
+								<h3
+									className="text-2xl md:text-4xl lg:text-5xl font-extrabold text-yellow-400 text-center mb-2"
+									style={{ textShadow: "0 2px 8px #000" }}
+								>
+									{revealOrder[
+										currentIdx
+									].teamName.toUpperCase()}{" "}
+									-{" "}
+									{placeLabels[
+										revealOrder.length - 1 - currentIdx
+									] ||
+										`${
+											revealOrder.length - currentIdx
+										}TH PLACE`}
+								</h3>
+								<button
+									className="mt-8 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl md:text-2xl px-8 py-3 md:px-10 md:py-4 rounded-lg shadow-lg transition-all w-full max-w-xs"
+									onClick={handleNext}
+									disabled={showRevealAnimation}
+								>
+									{currentIdx === revealOrder.length - 1
+										? "Finish"
+										: "Next →"}
+								</button>
+							</motion.div>
+						</>
 					)}
 					{step === "final" && (
-						<motion.div
-							key="final"
-							initial={{ opacity: 0, scale: 0.95 }}
-							animate={{ opacity: 1, scale: 1 }}
-							exit={{ opacity: 0, scale: 0.95 }}
-							transition={{ duration: 0.5 }}
-							className="bg-black bg-opacity-80 rounded-xl px-4 py-10 md:px-8 md:py-16 flex flex-col items-center w-full max-w-xl"
-						>
-							<h2
-								className="text-2xl md:text-4xl font-extrabold text-yellow-400 text-center mb-10"
-								style={{ textShadow: "0 2px 8px #000" }}
+						<>
+							<NewYearAnimation
+								message="🎉 All Results Revealed! 🎉"
+								duration={4000}
+							/>
+							<motion.div
+								key="final"
+								initial={{ opacity: 0, scale: 0.95 }}
+								animate={{ opacity: 1, scale: 1 }}
+								exit={{ opacity: 0, scale: 0.95 }}
+								transition={{ duration: 0.5 }}
+								className="bg-black bg-opacity-80 rounded-xl px-4 py-10 md:px-8 md:py-16 flex flex-col items-center w-full max-w-xl z-20"
 							>
-								All Results Revealed!
-							</h2>
-							<button
-								className="mt-8 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl md:text-2xl px-8 py-3 md:px-10 md:py-4 rounded-lg shadow-lg transition-all w-full max-w-xs"
-								onClick={handleFinish}
-							>
-								Finish
-							</button>
-						</motion.div>
+								<h2
+									className="text-2xl md:text-4xl font-extrabold text-yellow-400 text-center mb-10"
+									style={{ textShadow: "0 2px 8px #000" }}
+								>
+									All Results Revealed!
+								</h2>
+								<button
+									className="mt-8 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl md:text-2xl px-8 py-3 md:px-10 md:py-4 rounded-lg shadow-lg transition-all w-full max-w-xs"
+									onClick={handleFinish}
+								>
+									Finish
+								</button>
+							</motion.div>
+						</>
 					)}
 				</AnimatePresence>
 			</div>

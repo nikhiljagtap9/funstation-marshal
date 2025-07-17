@@ -20,8 +20,14 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/server.js ./
+
+# Set environment variables
 ENV NODE_ENV=production
+ENV PORT=8080
+
+# Expose the port that Cloud Run expects
 EXPOSE 8080
-# Start the Next.js app
-CMD ["npm", "start"]
-ENV NODE_ENV=production
+
+# Start with custom server
+CMD ["node", "server.js"]
