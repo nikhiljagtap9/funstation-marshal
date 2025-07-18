@@ -40,3 +40,27 @@ export async function listFiles(bucketName: string) {
 	const [files] = await storage.bucket(bucketName).getFiles();
 	return files;
 }
+
+// List all team usernames by listing files in the 'teams/' prefix
+export async function listAllTeamUsernames() {
+	const [files] = await bucket.getFiles({ prefix: "teams/" });
+	// Extract username from 'teams/{username}.json'
+	return files
+		.map((f) => f.name)
+		.filter((name) => name.startsWith("teams/") && name.endsWith(".json"))
+		.map((name) => name.replace("teams/", "").replace(".json", ""));
+}
+
+// Save a team record (overwrite existing)
+export async function saveTeamRecord(username: string, data: any) {
+	const file = bucket.file(`teams/${username}.json`);
+	await file.save(JSON.stringify(data, null, 2), {
+		contentType: "application/json",
+	});
+}
+
+export async function downloadTeamRecord(username: string) {
+	const file = bucket.file(`teams/${username}.json`);
+	const [data] = await file.download();
+	return JSON.parse(data.toString());
+}

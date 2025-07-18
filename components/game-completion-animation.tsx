@@ -5,11 +5,22 @@ import { useEffect, useState } from "react";
 import SparksAnimation from "@/components/sparks-animation";
 
 interface GameCompletionAnimationProps {
-	onComplete: () => void;
+	onComplete?: () => void;
 	duration?: number;
 }
 
-export default function GameCompletionAnimation() {
+export default function GameCompletionAnimation({
+	onComplete,
+	duration,
+}: GameCompletionAnimationProps) {
+	useEffect(() => {
+		if (onComplete) {
+			const timer = setTimeout(() => {
+				onComplete();
+			}, duration ?? 3500);
+			return () => clearTimeout(timer);
+		}
+	}, [onComplete, duration]);
 	return (
 		<div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
 			{/* Fire Sparks */}
@@ -42,7 +53,7 @@ export default function GameCompletionAnimation() {
 						opacity: [1, 0.7, 1],
 					}}
 					transition={{
-						duration: 3.5,
+						duration: duration ? duration / 1000 : 3.5,
 						repeat: Number.POSITIVE_INFINITY,
 						delay: Math.random() * 2,
 						ease: "linear",
@@ -64,7 +75,7 @@ export default function GameCompletionAnimation() {
 						opacity: [0, 1, 0],
 					}}
 					transition={{
-						duration: 2.2,
+						duration: duration ? duration / 1600 : 2.2,
 						repeat: Number.POSITIVE_INFINITY,
 						delay: Math.random() * 2,
 						ease: "easeInOut",
@@ -73,7 +84,6 @@ export default function GameCompletionAnimation() {
 					✨
 				</motion.div>
 			))}
-			
 		</div>
 	);
 }

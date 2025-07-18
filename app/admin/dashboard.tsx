@@ -109,6 +109,36 @@ export default function AdminDashboard() {
 	const [progressModalLoading, setProgressModalLoading] = useState(false);
 	const [progressModalData, setProgressModalData] = useState<any>(null);
 
+	const [resetModalOpen, setResetModalOpen] = useState(false);
+	const [resetLoading, setResetLoading] = useState(false);
+	// Add state for reset notification modal
+	const [resetNoticeOpen, setResetNoticeOpen] = useState(false);
+
+	const handleResetGames = async () => {
+		setResetLoading(true);
+		try {
+			const res = await fetch("/api/reset-all-games", { method: "POST" });
+			if (!res.ok) throw new Error("Failed to reset games");
+			toast({
+				title: "You resets all games!",
+				description: "All marshals need to start new competition again",
+				duration: 4000,
+				className: "bg-blue-100 text-blue-800 border-blue-300",
+			});
+			setResetModalOpen(false);
+			await fetchTeams();
+		} catch (err) {
+			toast({
+				title: "Reset failed",
+				description: "Could not reset games. Please try again.",
+				duration: 3000,
+				className: "bg-red-100 text-red-800 border-red-300",
+			});
+		} finally {
+			setResetLoading(false);
+		}
+	};
+
 	const handleShowProgressModal = async (team: TeamData) => {
 		setProgressModalTeam(team);
 		setProgressModalOpen(true);
@@ -275,6 +305,19 @@ export default function AdminDashboard() {
 		}
 	};
 
+	// Add polling fallback for fetchTeams if websocket is disconnected
+	useEffect(() => {
+		let pollInterval: NodeJS.Timeout | null = null;
+		if (!wsConnected) {
+			pollInterval = setInterval(() => {
+				fetchTeams();
+			}, 5000); // Poll every 5 seconds
+		}
+		return () => {
+			if (pollInterval) clearInterval(pollInterval);
+		};
+	}, [wsConnected, fetchTeams]);
+
 	// Update useEffect to depend on router and fetchTeams only
 	useEffect(() => {
 		if (
@@ -353,6 +396,9 @@ export default function AdminDashboard() {
 								description: "Admin settings have been updated",
 								duration: 2000,
 							});
+						}
+						if (msg.type === "gamesReset") {
+							setResetNoticeOpen(true);
 						}
 					} catch (error) {
 						console.error(
@@ -861,7 +907,7 @@ export default function AdminDashboard() {
 					</Card>
 				</motion.div>
 				{/* Show On Progress button if not all teams completed */}
-				{showOnProgressButton && (
+				{/* {showOnProgressButton && (
 					<div className="flex flex-col items-center justify-center min-h-[40vh]">
 						<button
 							className="bg-gray-300 text-gray-700 font-bold text-2xl px-10 py-6 rounded-lg cursor-not-allowed opacity-80"
@@ -870,7 +916,7 @@ export default function AdminDashboard() {
 							On Progress
 						</button>
 					</div>
-				)}
+				)} */}
 
 				{/* Reveal Flow: Splash, Team Results, Final */}
 				{resultsRevealed &&
@@ -1002,7 +1048,7 @@ export default function AdminDashboard() {
 											<span className="text-xs text-gray-600">
 												Total Time:{" "}
 												<span className="font-semibold text-yellow-800">
-													{formatHMS(
+													{formatMMSS(
 														winner.totalTime
 													)}
 												</span>
@@ -1158,7 +1204,7 @@ export default function AdminDashboard() {
 																			Total
 																			Time:{" "}
 																			<span className="font-semibold text-blue-800">
-																				{formatHMS(
+																				{formatMMSS(
 																					team.totalTime
 																				)}
 																			</span>
@@ -1211,42 +1257,175 @@ export default function AdminDashboard() {
 				)}
 
 				{/* In Progress Teams */}
-				{inProgressTeams.map((team) => (
-					<Card
-						key={team.username}
-						className="bg-gray-50 border-gray-200 cursor-pointer hover:shadow-xl transition-all"
-					>
-						<CardContent className="p-3">
-							<div className="flex items-center justify-between">
-								<div className="flex flex-col gap-1">
-									<span className="text-lg font-bold text-gray-800">
-										{team.teamName}
-									</span>
-									<span className="text-xs text-gray-600">
-										Marshal: {team.marshalName}
-									</span>
-									<span className="text-xs text-gray-600">
-										Total Time:{" "}
-										<span className="font-semibold text-gray-500">
-											On Progress
+				{inProgressTeams.length > 0 && (
+					<div className="flex items-center w-full mb-4">
+						<span className="text-2xl font-bold text-gray-800">
+							Team Details
+						</span>
+						<span className="inline-flex items-center px-4 py-1 rounded-full bg-yellow-400 text-black font-semibold text-base shadow-sm ml-2">
+							On Progress
+						</span>
+					</div>
+				)}
+				<div className="mt-8 mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+					{inProgressTeams.map((team) => {
+						const iconMap: Record<string, React.ReactNode> = {
+							"House of Cards": (
+								<span className="text-2xl">🏠</span>
+							),
+							"Office Chair Race": (
+								<span className="text-2xl">🪑</span>
+							),
+							"Around the Clock": (
+								<span className="text-2xl">🕐</span>
+							),
+							"Pass the Spud": (
+								<span className="text-2xl">🥔</span>
+							),
+							"Skin the Snake": (
+								<span className="text-2xl">🐍</span>
+							),
+						};
+						const allGames = [
+							"House of Cards",
+							"Office Chair Race",
+							"Around the Clock",
+							"Pass the Spud",
+							"Skin the Snake",
+						];
+						// Calculate total time and penalties for completed games
+						const completedGames =
+							team.gameProgress?.games?.filter(
+								(g: any) => g.completed
+							) || [];
+						const totalCompletedTime = completedGames.reduce(
+							(sum: number, g: any) => sum + (g.time || 0),
+							0
+						);
+						const totalPenaltySeconds = completedGames.reduce(
+							(sum: number, g: any) =>
+								sum + (g.details?.penaltySeconds || 0) * 5,
+							0
+						);
+						const gamesProgress = allGames.map((gameName, idx) => {
+							const found = team.gameProgress?.games?.find(
+								(g: any) => g.name === gameName
+							);
+							let penalty = 0;
+							if (
+								found &&
+								found.completed &&
+								found.details?.penaltySeconds
+							) {
+								penalty = found.details.penaltySeconds * 5;
+							}
+							return {
+								name: gameName,
+								icon: iconMap[gameName],
+								status:
+									found && found.completed
+										? formatMMSS(found.time || 0)
+										: "On Progress",
+								penalty,
+								isOfficeChairRace:
+									gameName === "Office Chair Race",
+								completed: !!(found && found.completed),
+							};
+						});
+						return (
+							<Card
+								key={team.username}
+								className="bg-white border-gray-200 shadow-lg mb-6"
+							>
+								<CardHeader className="flex flex-col items-start gap-2 pb-2">
+									<CardTitle className="text-xl font-bold text-gray-800 flex items-center gap-2">
+										<Users className="w-5 h-5 text-blue-500" />{" "}
+										Team Name:{" "}
+										<span className="font-semibold">
+											{team.teamName}
 										</span>
-									</span>
-								</div>
-								<button
-									className="p-2 rounded-full hover:bg-gray-200 focus:outline-none"
-									onClick={() =>
-										handleShowProgressModal(team)
-									}
-								>
-									<MoreVertical className="w-6 h-6 text-gray-600" />
-								</button>
-							</div>
-							<Badge className="mt-2 px-3 py-1 text-sm font-semibold bg-gray-300 text-gray-700 border-gray-400">
-								On Progress
-							</Badge>
-						</CardContent>
-					</Card>
-				))}
+									</CardTitle>
+									<div className="flex items-center gap-2 text-base font-medium text-gray-700">
+										<User className="w-5 h-5 text-green-600" />{" "}
+										Marshal Name:{" "}
+										<span className="font-semibold">
+											{team.marshalName}
+										</span>
+									</div>
+									<div className="flex items-center gap-2 text-base font-medium text-gray-700">
+										<Clock className="w-5 h-5 text-yellow-600" />{" "}
+										Total Time:{" "}
+										<span className="font-semibold text-yellow-700">
+											{formatMMSS(totalCompletedTime)}
+										</span>
+										{totalPenaltySeconds > 0 && (
+											<span className="text-red-600 font-normal ml-2">
+												+{totalPenaltySeconds}s penalty
+											</span>
+										)}
+									</div>
+								</CardHeader>
+								<CardContent className="pt-0">
+									<div className="mt-2 mb-1 text-gray-800 font-semibold">
+										Game Results:
+									</div>
+									<div className="flex flex-col gap-2">
+										{gamesProgress.map((game, idx) => (
+											<div
+												key={game.name}
+												className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
+											>
+												<span className="flex items-center gap-2 font-medium text-gray-700">
+													{game.icon} {game.name}:
+												</span>
+												<span
+													className={`font-semibold flex items-center gap-2 ${
+														game.status ===
+														"On Progress"
+															? "text-yellow-500"
+															: "text-green-600"
+													}`}
+												>
+													{game.status}
+													{game.completed &&
+														game.isOfficeChairRace &&
+														game.penalty > 0 && (
+															<span className="text-red-600 font-normal ml-1">
+																+{game.penalty}s
+															</span>
+														)}
+												</span>
+											</div>
+										))}
+									</div>
+								</CardContent>
+							</Card>
+						);
+					})}
+				</div>
+				{allTeamsCompleted && (
+					<div className="flex justify-center mb-8">
+						<button
+							className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg transition-all flex items-center gap-2"
+							onClick={() => setResetModalOpen(true)}
+						>
+							<svg
+								className="w-6 h-6 animate-pulse"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							Reset Games
+						</button>
+					</div>
+				)}
 			</div>
 			<Dialog open={notifOpen} onOpenChange={setNotifOpen}>
 				<DialogContent className="max-w-2xl">
@@ -1467,7 +1646,7 @@ export default function AdminDashboard() {
 							</p>
 							<p className="text-2xl font-bold text-yellow-600 mt-2">
 								Total Time:{" "}
-								{formatHMS(leaderboardModalTeam.totalTime)}
+								{formatMMSS(leaderboardModalTeam.totalTime)}
 							</p>
 						</div>
 						{/* Animated Game Breakdown */}
@@ -1734,7 +1913,7 @@ export default function AdminDashboard() {
 									</span>
 
 									<span className="font-semibold text-yellow-700">
-										{formatHMS(totalFinalTime)}
+										{formatMMSS(totalFinalTime)}
 									</span>
 								</div>
 							</div>
@@ -1867,6 +2046,127 @@ export default function AdminDashboard() {
 							</span>
 						</div>
 					)}
+				</DialogContent>
+			</Dialog>
+			{/* Reset Confirmation Modal */}
+			<Dialog open={resetModalOpen} onOpenChange={setResetModalOpen}>
+				<DialogContent className="max-w-md w-full p-0 sm:p-6 rounded-2xl shadow-2xl bg-white/95 border-none flex flex-col items-center">
+					<div className="flex flex-col items-center justify-center w-full">
+						<div className="mb-4">
+							<svg
+								className="w-16 h-16 text-red-500 animate-bounce"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+						</div>
+						<DialogTitle className="text-2xl font-bold text-center text-red-600 mb-2">
+							Reset All Games?
+						</DialogTitle>
+						<div className="text-gray-700 text-center mb-6 px-2">
+							This will{" "}
+							<span className="font-bold text-red-600">
+								delete all game records
+							</span>{" "}
+							for all teams. Teams and users will remain, but all
+							progress will be lost and everyone will need to
+							start the competition again.
+							<br />
+							<br />
+							<span className="font-semibold">
+								Are you sure you want to reset all games?
+							</span>
+						</div>
+						<div className="flex gap-4 w-full justify-center">
+							<button
+								className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg transition-all"
+								onClick={() => setResetModalOpen(false)}
+								disabled={resetLoading}
+							>
+								Cancel
+							</button>
+							<button
+								className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-all flex items-center gap-2"
+								onClick={handleResetGames}
+								disabled={resetLoading}
+							>
+								{resetLoading && (
+									<svg
+										className="w-5 h-5 animate-spin"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										viewBox="0 0 24 24"
+									>
+										<circle
+											className="opacity-25"
+											cx="12"
+											cy="12"
+											r="10"
+											stroke="currentColor"
+											strokeWidth="4"
+										></circle>
+										<path
+											className="opacity-75"
+											fill="currentColor"
+											d="M4 12a8 8 0 018-8v8z"
+										></path>
+									</svg>
+								)}
+								Confirm
+							</button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+			<Dialog open={resetNoticeOpen} onOpenChange={setResetNoticeOpen}>
+				<DialogContent className="max-w-md w-full p-0 sm:p-6 rounded-2xl shadow-2xl bg-white/95 border-none flex flex-col items-center">
+					<div className="flex flex-col items-center justify-center w-full">
+						<div className="mb-4">
+							<svg
+								className="w-16 h-16 text-red-500 animate-bounce"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+						</div>
+						<DialogTitle className="text-2xl font-bold text-center text-red-600 mb-2">
+							Admin resets all games!
+						</DialogTitle>
+						<div className="text-gray-700 text-center mb-6 px-2">
+							You need to start new competition again.
+							<br />
+							<br />
+							Please log in again to continue.
+						</div>
+						<div className="flex gap-4 w-full justify-center">
+							<button
+								className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-all"
+								onClick={() => {
+									setResetNoticeOpen(false);
+									localStorage.removeItem("marshalSession");
+									localStorage.removeItem("adminSession");
+									window.location.href = "/";
+								}}
+							>
+								OK
+							</button>
+						</div>
+					</div>
 				</DialogContent>
 			</Dialog>
 		</div>

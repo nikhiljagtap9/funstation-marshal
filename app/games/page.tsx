@@ -76,6 +76,85 @@ export default function GamesPage() {
 	const router = useRouter();
 	const { toast } = useToast();
 
+	// Define defaultGames with all required GameData properties
+	const defaultGames = [
+		{
+			name: "House of Cards",
+			icon: "🏠",
+			description: "Build the tallest card tower",
+			completed: false,
+			time: 0,
+			score: 0,
+			details: {
+				bonusSeconds: 0,
+				penaltySeconds: 0,
+				creativityBonus: false,
+				finalScore: 0,
+				finalScoreFormatted: "0:00",
+			},
+		},
+		{
+			name: "Office Chair Race",
+			icon: "🪑",
+			description: "Navigate obstacles on wheels",
+			completed: false,
+			time: 0,
+			score: 0,
+			details: {
+				bonusSeconds: 0,
+				penaltySeconds: 0,
+				creativityBonus: false,
+				finalScore: 0,
+				finalScoreFormatted: "0:00",
+			},
+		},
+		{
+			name: "Around the Clock",
+			icon: "🕐",
+			description: "Complete tasks in sequence",
+			completed: false,
+			time: 0,
+			score: 0,
+			details: {
+				bonusSeconds: 0,
+				penaltySeconds: 0,
+				creativityBonus: false,
+				finalScore: 0,
+				finalScoreFormatted: "0:00",
+			},
+		},
+		{
+			name: "Pass the Spud",
+			icon: "🥔",
+			description: "Team coordination challenge",
+			completed: false,
+			time: 0,
+			score: 0,
+			details: {
+				bonusSeconds: 0,
+				penaltySeconds: 0,
+				creativityBonus: false,
+				finalScore: 0,
+				finalScoreFormatted: "0:00",
+			},
+		},
+		{
+			name: "Skin the Snake",
+			icon: "🐍",
+			description: "Team coordination snake game",
+			completed: false,
+			time: 0,
+			score: 0,
+			details: {
+				bonusSeconds: 0,
+				penaltySeconds: 0,
+				creativityBonus: false,
+				finalScore: 0,
+				finalScoreFormatted: "0:00",
+			},
+		},
+	];
+
 	useEffect(() => {
 		const token = localStorage.getItem("authToken");
 		if (!token) {
@@ -99,9 +178,16 @@ export default function GamesPage() {
 				if (res.ok) {
 					const cloudData = await res.json();
 					if (cloudData.gameProgress) {
-						const loadedGames =
-							cloudData.gameProgress.games || games;
-						setGames(loadedGames);
+						// When loading from cloud or after reset:
+						if (
+							!cloudData.gameProgress ||
+							!cloudData.gameProgress.games ||
+							cloudData.gameProgress.games.length === 0
+						) {
+							setGames(defaultGames);
+						} else {
+							setGames(cloudData.gameProgress.games);
+						}
 
 						// Determine the correct current game
 						let correctCurrentGame =
@@ -109,16 +195,14 @@ export default function GamesPage() {
 
 						// If we have a currentGame saved, verify it's correct
 						// The current game should be the first uncompleted game
-						const firstUncompletedIndex = loadedGames.findIndex(
+						const firstUncompletedIndex = games.findIndex(
 							(game: any) => !game.completed
 						);
 						if (firstUncompletedIndex !== -1) {
 							correctCurrentGame = firstUncompletedIndex;
-						} else if (
-							loadedGames.every((game: any) => game.completed)
-						) {
+						} else if (games.every((game: any) => game.completed)) {
 							// All games completed, set to last game index
-							correctCurrentGame = loadedGames.length - 1;
+							correctCurrentGame = games.length - 1;
 						}
 
 						setCurrentGame(correctCurrentGame);
@@ -419,7 +503,7 @@ export default function GamesPage() {
 										Current Game
 									</p>
 									<p className="text-lg font-semibold text-gray-800">
-										{currentGame < games.length
+										{games.length > 0 && games[currentGame]
 											? games[currentGame].name
 											: "All Complete!"}
 									</p>

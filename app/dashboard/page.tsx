@@ -38,6 +38,7 @@ import {
 	AlertDialogAction,
 	AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface MarshalData {
 	marshalName: string;
@@ -112,6 +113,7 @@ export default function DashboardPage() {
 	);
 	// Add state to track WebSocket connection status
 	const [wsConnected, setWsConnected] = useState(false);
+	const [resetNoticeOpen, setResetNoticeOpen] = useState(false);
 
 	const fetchMarshalData = useCallback(async () => {
 		try {
@@ -235,6 +237,10 @@ export default function DashboardPage() {
 								duration: 4000,
 							});
 						}
+						if (msg.type === "gamesReset") {
+							setResetNoticeOpen(true);
+							fetchMarshalData(); // Refresh marshal data immediately on reset
+						}
 					} catch (error) {
 						console.error(
 							"Error parsing WebSocket message:",
@@ -267,6 +273,45 @@ export default function DashboardPage() {
 			}
 		};
 	}, [router, toast]);
+
+	// Add polling fallback if websocket is not connected
+	useEffect(() => {
+		let pollInterval: NodeJS.Timeout | null = null;
+		if (!wsConnected) {
+			pollInterval = setInterval(async () => {
+				try {
+					let username = "";
+					const localData = localStorage.getItem("marshalData");
+					if (localData) {
+						const parsed = JSON.parse(localData);
+						username = parsed.username;
+					}
+					if (!username) return;
+					const res = await fetch(
+						`/api/get-team-record?teamId=${encodeURIComponent(
+							username
+						)}`
+					);
+					if (res.ok) {
+						const data = await res.json();
+						// If reset detected (games array is empty)
+						if (
+							data &&
+							data.gameProgress &&
+							Array.isArray(data.gameProgress.games) &&
+							data.gameProgress.games.length === 0 &&
+							!resetNoticeOpen
+						) {
+							setResetNoticeOpen(true);
+						}
+					}
+				} catch {}
+			}, 5000);
+		}
+		return () => {
+			if (pollInterval) clearInterval(pollInterval);
+		};
+	}, [wsConnected, resetNoticeOpen]);
 
 	// WebSocket-only real-time updates (polling removed)
 	// All updates now come through WebSocket connections
@@ -1365,6 +1410,49 @@ export default function DashboardPage() {
 					}}
 				/>
 			)}
+			<Dialog open={resetNoticeOpen} onOpenChange={setResetNoticeOpen}>
+				<DialogContent className="max-w-md w-full p-0 sm:p-6 rounded-2xl shadow-2xl bg-white/95 border-none flex flex-col items-center">
+					<div className="flex flex-col items-center justify-center w-full">
+						<div className="mb-4">
+							<svg
+								className="w-16 h-16 text-red-500 animate-bounce"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+						</div>
+						<DialogTitle className="text-2xl font-bold text-center text-red-600 mb-2">
+							Admin resets all games!
+						</DialogTitle>
+						<div className="text-gray-700 text-center mb-6 px-2">
+							You need to start new competition again.
+							<br />
+							<br />
+							Please log in again to continue.
+						</div>
+						<div className="flex gap-4 w-full justify-center">
+							<button
+								className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-all"
+								onClick={() => {
+									setResetNoticeOpen(false);
+									localStorage.removeItem("authToken");
+									localStorage.removeItem("marshalData");
+									window.location.href = "/";
+								}}
+							>
+								OK
+							</button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
