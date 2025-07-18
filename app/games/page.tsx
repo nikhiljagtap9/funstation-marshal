@@ -178,33 +178,23 @@ export default function GamesPage() {
 				if (res.ok) {
 					const cloudData = await res.json();
 					if (cloudData.gameProgress) {
-						// When loading from cloud or after reset:
-						if (
-							!cloudData.gameProgress ||
-							!cloudData.gameProgress.games ||
-							cloudData.gameProgress.games.length === 0
-						) {
-							setGames(defaultGames);
-						} else {
-							setGames(cloudData.gameProgress.games);
+						let gamesArr = cloudData.gameProgress.games;
+						if (!gamesArr || gamesArr.length === 0) {
+							gamesArr = defaultGames;
 						}
-
-						// Determine the correct current game
-						let correctCurrentGame =
-							cloudData.gameProgress.currentGame || 0;
-
-						// If we have a currentGame saved, verify it's correct
-						// The current game should be the first uncompleted game
-						const firstUncompletedIndex = games.findIndex(
+						setGames(gamesArr);
+						// Determine the correct current game from cloud
+						let correctCurrentGame = 0;
+						const firstUncompletedIndex = gamesArr.findIndex(
 							(game: any) => !game.completed
 						);
 						if (firstUncompletedIndex !== -1) {
 							correctCurrentGame = firstUncompletedIndex;
-						} else if (games.every((game: any) => game.completed)) {
-							// All games completed, set to last game index
-							correctCurrentGame = games.length - 1;
+						} else if (
+							gamesArr.every((game: any) => game.completed)
+						) {
+							correctCurrentGame = gamesArr.length - 1;
 						}
-
 						setCurrentGame(correctCurrentGame);
 					}
 					if (cloudData.teamName || cloudData.teamMembers) {

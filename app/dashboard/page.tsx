@@ -324,7 +324,19 @@ export default function DashboardPage() {
 	};
 
 	const handleContinueGames = () => {
-		router.push("/games");
+		// Find the first uncompleted game index
+		let currentGameIdx = 0;
+		if (marshalData && marshalData.gameProgress && Array.isArray(marshalData.gameProgress.games)) {
+			const firstUncompleted = marshalData.gameProgress.games.findIndex((g: any) => !g.completed);
+			if (firstUncompleted !== -1) {
+				currentGameIdx = firstUncompleted;
+			} else {
+				currentGameIdx = marshalData.gameProgress.games.length - 1;
+			}
+		}
+		// Store in localStorage for /games page to read
+		localStorage.setItem('currentGame', String(currentGameIdx));
+		router.push('/games');
 	};
 
 	const handleResetGames = async () => {
