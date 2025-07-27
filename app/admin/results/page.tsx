@@ -211,6 +211,7 @@ export default function AdminResultsReveal() {
 						<>
 							<NewYearAnimation
 								message="🎉 All Results Revealed! 🎉"
+								subtitle="Thank you for an FUNTASTIC Competition!"
 								duration={4000}
 							/>
 							<motion.div

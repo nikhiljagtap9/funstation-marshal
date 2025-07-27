@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 
 interface NewYearAnimationProps {
 	message: string;
+	subtitle?: string;
 	duration?: number;
 }
 
 export default function NewYearAnimation({
 	message,
+	subtitle = "Get ready for an amazing competition!",
 	duration = 4000,
 }: NewYearAnimationProps) {
 	const [particles, setParticles] = useState<
@@ -121,7 +123,7 @@ export default function NewYearAnimation({
 					transition={{ duration: 1, delay: 0.5 }}
 					className="text-white text-xl"
 				>
-					Get ready for an amazing competition!
+					{subtitle}
 				</motion.div>
 			</motion.div>
 
