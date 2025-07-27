@@ -114,6 +114,7 @@ export default function DashboardPage() {
 	// Add state to track WebSocket connection status
 	const [wsConnected, setWsConnected] = useState(false);
 	const [resetNoticeOpen, setResetNoticeOpen] = useState(false);
+	const [deleteNoticeOpen, setDeleteNoticeOpen] = useState(false);
 
 	const fetchMarshalData = useCallback(async () => {
 		try {
@@ -178,7 +179,10 @@ export default function DashboardPage() {
 				ws.onmessage = (event) => {
 					try {
 						const msg = JSON.parse(event.data);
-						console.log("Marshal WebSocket message received:", msg);
+						console.log(
+							"Dashboard WebSocket message received:",
+							msg
+						);
 
 						if (msg.type === "editAllowed") {
 							console.log(
@@ -240,6 +244,18 @@ export default function DashboardPage() {
 						if (msg.type === "gamesReset") {
 							setResetNoticeOpen(true);
 							fetchMarshalData(); // Refresh marshal data immediately on reset
+						}
+						if (msg.type === "marshalDeleted") {
+							// Check if this message is for the current marshal
+							const localData =
+								localStorage.getItem("marshalData");
+							if (localData) {
+								const parsed = JSON.parse(localData);
+								if (parsed.username === msg.username) {
+									// Show deletion modal and auto-logout
+									setDeleteNoticeOpen(true);
+								}
+							}
 						}
 					} catch (error) {
 						console.error(
@@ -326,8 +342,14 @@ export default function DashboardPage() {
 	const handleContinueGames = () => {
 		// Find the first uncompleted game index
 		let currentGameIdx = 0;
-		if (marshalData && marshalData.gameProgress && Array.isArray(marshalData.gameProgress.games)) {
-			const firstUncompleted = marshalData.gameProgress.games.findIndex((g: any) => !g.completed);
+		if (
+			marshalData &&
+			marshalData.gameProgress &&
+			Array.isArray(marshalData.gameProgress.games)
+		) {
+			const firstUncompleted = marshalData.gameProgress.games.findIndex(
+				(g: any) => !g.completed
+			);
 			if (firstUncompleted !== -1) {
 				currentGameIdx = firstUncompleted;
 			} else {
@@ -335,8 +357,8 @@ export default function DashboardPage() {
 			}
 		}
 		// Store in localStorage for /games page to read
-		localStorage.setItem('currentGame', String(currentGameIdx));
-		router.push('/games');
+		localStorage.setItem("currentGame", String(currentGameIdx));
+		router.push("/games");
 	};
 
 	const handleResetGames = async () => {
@@ -1441,21 +1463,71 @@ export default function DashboardPage() {
 							</svg>
 						</div>
 						<DialogTitle className="text-2xl font-bold text-center text-red-600 mb-2">
-							Admin resets all games!
+							Games Reset
 						</DialogTitle>
 						<div className="text-gray-700 text-center mb-6 px-2">
-							You need to start new competition again.
+							Admin has reset all games. You will be logged out
+							automatically.
 							<br />
 							<br />
 							Please log in again to continue.
 						</div>
 						<div className="flex gap-4 w-full justify-center">
 							<button
-								className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-all"
+								className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-all"
 								onClick={() => {
 									setResetNoticeOpen(false);
 									localStorage.removeItem("authToken");
 									localStorage.removeItem("marshalData");
+									localStorage.removeItem("gameProgress");
+									window.location.href = "/";
+								}}
+							>
+								OK
+							</button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Notice Modal */}
+			<Dialog open={deleteNoticeOpen} onOpenChange={setDeleteNoticeOpen}>
+				<DialogContent className="max-w-md w-full p-0 sm:p-6 rounded-2xl shadow-2xl bg-white/95 border-none flex flex-col items-center">
+					<div className="flex flex-col items-center justify-center w-full">
+						<div className="mb-4">
+							<svg
+								className="w-16 h-16 text-red-500 animate-bounce"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+								/>
+							</svg>
+						</div>
+						<DialogTitle className="text-2xl font-bold text-center text-red-600 mb-2">
+							Account Deleted
+						</DialogTitle>
+						<div className="text-gray-700 text-center mb-6 px-2">
+							Admin has deleted your account. You will be logged
+							out automatically.
+							<br />
+							<br />
+							Please contact the administrator if you believe this
+							was done in error.
+						</div>
+						<div className="flex gap-4 w-full justify-center">
+							<button
+								className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-all"
+								onClick={() => {
+									setDeleteNoticeOpen(false);
+									localStorage.removeItem("authToken");
+									localStorage.removeItem("marshalData");
+									localStorage.removeItem("gameProgress");
 									window.location.href = "/";
 								}}
 							>

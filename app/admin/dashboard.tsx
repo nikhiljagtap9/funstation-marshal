@@ -39,6 +39,7 @@ import {
 } from "chart.js";
 import SparksAnimation from "@/components/sparks-animation";
 import ShowResultsButton from "@/components/show-results-button";
+import GameCodeManager from "@/components/game-code-manager";
 import React from "react";
 
 interface TeamData {
@@ -47,7 +48,7 @@ interface TeamData {
 	teamName: string;
 	totalTime: number;
 	gameProgress?: any;
-	groupName?: string; // <-- add this line
+	groupName?: string;
 }
 
 function formatHMS(seconds: number) {
@@ -111,8 +112,10 @@ export default function AdminDashboard() {
 
 	const [resetModalOpen, setResetModalOpen] = useState(false);
 	const [resetLoading, setResetLoading] = useState(false);
-	// Add state for reset notification modal
-	const [resetNoticeOpen, setResetNoticeOpen] = useState(false);
+	// Add state for delete marshal modal
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+	const [deleteLoading, setDeleteLoading] = useState(false);
+	const [marshalToDelete, setMarshalToDelete] = useState<string>("");
 
 	const handleResetGames = async () => {
 		setResetLoading(true);
@@ -120,8 +123,8 @@ export default function AdminDashboard() {
 			const res = await fetch("/api/reset-all-games", { method: "POST" });
 			if (!res.ok) throw new Error("Failed to reset games");
 			toast({
-				title: "You resets all games!",
-				description: "All marshals need to start new competition again",
+				title: "All games reset!",
+				description: "All marshals will be logged out automatically",
 				duration: 4000,
 				className: "bg-blue-100 text-blue-800 border-blue-300",
 			});
@@ -136,6 +139,43 @@ export default function AdminDashboard() {
 			});
 		} finally {
 			setResetLoading(false);
+		}
+	};
+
+	const handleDeleteMarshal = (username: string) => {
+		setMarshalToDelete(username);
+		setDeleteModalOpen(true);
+	};
+
+	const confirmDeleteMarshal = async () => {
+		setDeleteLoading(true);
+		try {
+			const res = await fetch("/api/delete-marshal", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ username: marshalToDelete }),
+			});
+			if (!res.ok) throw new Error("Failed to delete marshal");
+
+			const result = await res.json();
+			toast({
+				title: "Marshal deleted!",
+				description: `Marshal ${result.username} has been deleted and logged out`,
+				duration: 4000,
+				className: "bg-red-100 text-red-800 border-red-300",
+			});
+			setDeleteModalOpen(false);
+			setMarshalToDelete("");
+			await fetchTeams();
+		} catch (err) {
+			toast({
+				title: "Delete failed",
+				description: "Could not delete marshal. Please try again.",
+				duration: 3000,
+				className: "bg-red-100 text-red-800 border-red-300",
+			});
+		} finally {
+			setDeleteLoading(false);
 		}
 	};
 
@@ -396,9 +436,6 @@ export default function AdminDashboard() {
 								description: "Admin settings have been updated",
 								duration: 2000,
 							});
-						}
-						if (msg.type === "gamesReset") {
-							setResetNoticeOpen(true);
 						}
 					} catch (error) {
 						console.error(
@@ -757,8 +794,51 @@ export default function AdminDashboard() {
 							</CardContent>
 						</Card>
 					</motion.div>
+
+					{/* Game Code Management */}
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.6, delay: 0.4 }}
+						className="mb-8"
+					>
+						<GameCodeManager />
+					</motion.div>
+
+					{/* Reset Games Button - Always visible when teams exist */}
+					{teams.length > 0 && (
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.6, delay: 0.5 }}
+							className="mb-8"
+						>
+							<div className="flex justify-center">
+								<button
+									className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg transition-all flex items-center gap-2"
+									onClick={() => setResetModalOpen(true)}
+								>
+									<svg
+										className="w-6 h-6 animate-pulse"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										viewBox="0 0 24 24"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+										/>
+									</svg>
+									Reset All Games
+								</button>
+							</div>
+						</motion.div>
+					)}
+
 					{/* Show Results button centered */}
-					<div className="flex flex-col items-center justify-center min-h-[40vh]">
+					<div className="flex flex-col items-center justify-center min-h-[30vh]">
 						<button
 							className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-2xl px-10 py-6 rounded-lg shadow-lg transition-all w-full max-w-xs"
 							onClick={() => {
@@ -906,6 +986,49 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 				</motion.div>
+
+				{/* Game Code Management */}
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.6, delay: 0.4 }}
+					className="mb-8"
+				>
+					<GameCodeManager />
+				</motion.div>
+
+				{/* Reset Games Button - Always visible when teams exist */}
+				{teams.length > 0 && (
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.6, delay: 0.5 }}
+						className="mb-8"
+					>
+						<div className="flex justify-center">
+							<button
+								className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg transition-all flex items-center gap-2"
+								onClick={() => setResetModalOpen(true)}
+							>
+								<svg
+									className="w-6 h-6 animate-pulse"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									viewBox="0 0 24 24"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
+								</svg>
+								Reset All Games
+							</button>
+						</div>
+					</motion.div>
+				)}
+
 				{/* Show On Progress button if not all teams completed */}
 				{/* {showOnProgressButton && (
 					<div className="flex flex-col items-center justify-center min-h-[40vh]">
@@ -1210,21 +1333,35 @@ export default function AdminDashboard() {
 																			</span>
 																		</span>
 																	</div>
-																	<Button
-																		variant="outline"
-																		size="sm"
-																		className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
-																		onClick={() => {
-																			setLeaderboardModalTeam(
-																				team
-																			);
-																			setLeaderboardModalOpen(
-																				true
-																			);
-																		}}
-																	>
-																		Details
-																	</Button>
+																	<div className="flex flex-col gap-1">
+																		<Button
+																			variant="outline"
+																			size="sm"
+																			className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+																			onClick={() => {
+																				setLeaderboardModalTeam(
+																					team
+																				);
+																				setLeaderboardModalOpen(
+																					true
+																				);
+																			}}
+																		>
+																			Details
+																		</Button>
+																		<Button
+																			variant="outline"
+																			size="sm"
+																			className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-300"
+																			onClick={() =>
+																				handleDeleteMarshal(
+																					team.username
+																				)
+																			}
+																		>
+																			Delete
+																		</Button>
+																	</div>
 																</div>
 																<Badge
 																	className={`mt-2 px-3 py-1 text-sm font-semibold ${
@@ -1338,13 +1475,27 @@ export default function AdminDashboard() {
 								className="bg-white border-gray-200 shadow-lg mb-6"
 							>
 								<CardHeader className="flex flex-col items-start gap-2 pb-2">
-									<CardTitle className="text-xl font-bold text-gray-800 flex items-center gap-2">
-										<Users className="w-5 h-5 text-blue-500" />{" "}
-										Team Name:{" "}
-										<span className="font-semibold">
-											{team.teamName}
-										</span>
-									</CardTitle>
+									<div className="flex justify-between items-start w-full">
+										<CardTitle className="text-xl font-bold text-gray-800 flex items-center gap-2">
+											<Users className="w-5 h-5 text-blue-500" />{" "}
+											Team Name:{" "}
+											<span className="font-semibold">
+												{team.teamName}
+											</span>
+										</CardTitle>
+										<Button
+											onClick={() =>
+												handleDeleteMarshal(
+													team.username
+												)
+											}
+											variant="outline"
+											size="sm"
+											className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-300"
+										>
+											Delete
+										</Button>
+									</div>
 									<div className="flex items-center gap-2 text-base font-medium text-gray-700">
 										<User className="w-5 h-5 text-green-600" />{" "}
 										Marshal Name:{" "}
@@ -1403,29 +1554,6 @@ export default function AdminDashboard() {
 						);
 					})}
 				</div>
-				{allTeamsCompleted && (
-					<div className="flex justify-center mb-8">
-						<button
-							className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg transition-all flex items-center gap-2"
-							onClick={() => setResetModalOpen(true)}
-						>
-							<svg
-								className="w-6 h-6 animate-pulse"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								viewBox="0 0 24 24"
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-							Reset Games
-						</button>
-					</div>
-				)}
 			</div>
 			<Dialog open={notifOpen} onOpenChange={setNotifOpen}>
 				<DialogContent className="max-w-2xl">
@@ -2126,7 +2254,9 @@ export default function AdminDashboard() {
 					</div>
 				</DialogContent>
 			</Dialog>
-			<Dialog open={resetNoticeOpen} onOpenChange={setResetNoticeOpen}>
+
+			{/* Delete Marshal Confirmation Modal */}
+			<Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
 				<DialogContent className="max-w-md w-full p-0 sm:p-6 rounded-2xl shadow-2xl bg-white/95 border-none flex flex-col items-center">
 					<div className="flex flex-col items-center justify-center w-full">
 						<div className="mb-4">
@@ -2140,30 +2270,73 @@ export default function AdminDashboard() {
 								<path
 									strokeLinecap="round"
 									strokeLinejoin="round"
-									d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 								/>
 							</svg>
 						</div>
 						<DialogTitle className="text-2xl font-bold text-center text-red-600 mb-2">
-							Admin resets all games!
+							Delete Marshal?
 						</DialogTitle>
 						<div className="text-gray-700 text-center mb-6 px-2">
-							You need to start new competition again.
+							This will{" "}
+							<span className="font-bold text-red-600">
+								permanently delete
+							</span>{" "}
+							marshal{" "}
+							<span className="font-semibold">
+								{marshalToDelete}
+							</span>{" "}
+							and all their data.
 							<br />
 							<br />
-							Please log in again to continue.
+							The marshal will be automatically logged out and
+							their account will be removed.
+							<br />
+							<br />
+							<span className="font-semibold">
+								Are you sure you want to delete this marshal?
+							</span>
 						</div>
 						<div className="flex gap-4 w-full justify-center">
 							<button
-								className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-all"
+								className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg transition-all"
 								onClick={() => {
-									setResetNoticeOpen(false);
-									localStorage.removeItem("marshalSession");
-									localStorage.removeItem("adminSession");
-									window.location.href = "/";
+									setDeleteModalOpen(false);
+									setMarshalToDelete("");
 								}}
+								disabled={deleteLoading}
 							>
-								OK
+								Cancel
+							</button>
+							<button
+								className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-all flex items-center gap-2"
+								onClick={confirmDeleteMarshal}
+								disabled={deleteLoading}
+							>
+								{deleteLoading && (
+									<svg
+										className="w-5 h-5 animate-spin"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										viewBox="0 0 24 24"
+									>
+										<circle
+											className="opacity-25"
+											cx="12"
+											cy="12"
+											r="10"
+											stroke="currentColor"
+											strokeWidth="4"
+										></circle>
+										<path
+											className="opacity-75"
+											fill="currentColor"
+											d="M4 12a8 8 0 018-8v8z"
+										></path>
+									</svg>
+								)}
+								Delete
 							</button>
 						</div>
 					</div>

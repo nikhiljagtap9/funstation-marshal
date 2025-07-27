@@ -9,7 +9,6 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
 	title: "Fun Station - Game Marshal Control Panel",
 	description: "Ultimate team competition control panel",
-	generator: "v0.dev",
 };
 
 export default function RootLayout({

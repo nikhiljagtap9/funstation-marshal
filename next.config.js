@@ -11,9 +11,7 @@ const nextConfig = {
 		}
 		return config;
 	},
-	experimental: {
-		serverComponentsExternalPackages: ["@google-cloud/storage"],
-	},
+	serverExternalPackages: ["@google-cloud/storage"],
 	output: "standalone",
 };
 

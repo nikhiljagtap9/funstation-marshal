@@ -19,11 +19,13 @@ import {
 export default function LoginForm() {
 	const [marshalName, setMarshalName] = useState("");
 	const [password, setPassword] = useState("");
+	const [gameCode, setGameCode] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [errors, setErrors] = useState<{
 		marshalName?: string;
 		password?: string;
+		gameCode?: string;
 	}>({});
 	const [showResetModal, setShowResetModal] = useState(false);
 	const [resetPassword, setResetPassword] = useState("");
@@ -45,9 +47,11 @@ export default function LoginForm() {
 		const newErrors: {
 			marshalName?: string;
 			password?: string;
+			gameCode?: string;
 		} = {};
 		if (!marshalName) newErrors.marshalName = "Username is required";
 		if (!password) newErrors.password = "Password is required";
+		if (!gameCode) newErrors.gameCode = "Game code is required";
 
 		// Prevent admin credentials in marshal login
 		if (marshalName === ADMIN_USERNAME) {
@@ -88,6 +92,26 @@ export default function LoginForm() {
 			return;
 		}
 
+		// Validate game code first
+		try {
+			const gameCodeRes = await fetch("/api/validate-game-code", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ gameCode }),
+			});
+			const gameCodeResult = await gameCodeRes.json();
+
+			if (!gameCodeResult.valid) {
+				setErrors({ gameCode: "Invalid game code" });
+				setIsLoading(false);
+				return;
+			}
+		} catch (err) {
+			setErrors({ gameCode: "Failed to validate game code" });
+			setIsLoading(false);
+			return;
+		}
+
 		// Login via API
 		try {
 			const res = await fetch("/api/login-user", {
@@ -96,6 +120,7 @@ export default function LoginForm() {
 				body: JSON.stringify({
 					username: marshalName,
 					password,
+					gameCode,
 				}),
 			});
 			const result = await res.json();
@@ -182,6 +207,30 @@ export default function LoginForm() {
 					{errors.password && (
 						<p className="text-red-500 text-sm mt-1">
 							{errors.password}
+						</p>
+					)}
+				</div>
+
+				<div>
+					<Label htmlFor="gameCode" className="text-gray-700">
+						Game Code
+					</Label>
+					<Input
+						id="gameCode"
+						type="text"
+						value={gameCode}
+						onChange={(e) =>
+							setGameCode(e.target.value.toUpperCase())
+						}
+						className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-yellow-400 focus:ring-yellow-400"
+						placeholder="Enter game code"
+						autoComplete="off"
+						required={true}
+						maxLength={12}
+					/>
+					{errors.gameCode && (
+						<p className="text-red-500 text-sm mt-1">
+							{errors.gameCode}
 						</p>
 					)}
 				</div>

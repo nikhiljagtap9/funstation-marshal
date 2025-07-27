@@ -7,7 +7,7 @@ declare global {
 				teamId?: string;
 				gameIndex?: number;
 				completedGames?: number;
-				resultsRevealed?: boolean; // Add this line for admin settings
+				resultsRevealed?: boolean;
 				hasGameProgress?: boolean;
 		  }) => void)
 		| undefined;
