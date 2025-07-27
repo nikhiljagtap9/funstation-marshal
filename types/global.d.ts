@@ -5,6 +5,7 @@ declare global {
 				message?: string;
 				time?: string;
 				teamId?: string;
+				username?: string;
 				gameIndex?: number;
 				completedGames?: number;
 				resultsRevealed?: boolean;
